@@ -1,2 +1,2 @@
 # Chess-Gas
-Chess based cellular automaton website
+Chess based cellular automaton webapp
