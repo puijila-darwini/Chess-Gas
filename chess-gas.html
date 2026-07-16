@@ -1038,6 +1038,10 @@ body[data-layout="phone"] #ph-backdrop.ph-open{display:block}
             <input type="checkbox" id="seedPin"> pin
           </label>
         </div>
+        <div class="row" style="margin-top:4px">
+          <button id="seedLoadBtn" style="flex:1;background:var(--accent2);color:#fff;border:1px solid var(--accent);
+            padding:5px 4px;font-family:inherit;font-size:var(--fs-lbl);font-weight:600;cursor:pointer;letter-spacing:.02em">⟳ LOAD SEED &amp; RESTART</button>
+        </div>
         <div class="row" style="gap:4px;margin-top:3px">
           <button class="mini-btn" id="seedRandomBtn" style="flex:1">⚄ RANDOMIZE</button>
           <button class="mini-btn" id="seedCopyBtn">⧉ COPY</button>
@@ -1424,11 +1428,14 @@ function diceRandom(){ return dicePRNG.random(); }       // dice/cosmetic-random
 // there's only one seed for the user to think about/pin/copy. If pinned,
 // reuse it (so repeat runs are literal repeats); otherwise draw a fresh one
 // and show it, so every run's seed is visible/copyable even for people who
-// never touch the field.
-function seedForRun(){
+// never touch the field. A forcedSeed (from the "load seed" button) always
+// wins, regardless of pin state, so that button reliably restarts with
+// exactly what's in the field.
+function seedForRun(forcedSeed){
   const inputEl=document.getElementById('seedInput'), pinEl=document.getElementById('seedPin');
   let seed;
-  if(pinEl?.checked && inputEl?.value){ seed=inputEl.value; }
+  if(forcedSeed){ seed=forcedSeed; if(inputEl) inputEl.value=seed; }
+  else if(pinEl?.checked && inputEl?.value){ seed=inputEl.value; }
   else{ seed=freshSeedString(); if(inputEl) inputEl.value=seed; }
   physicsPRNG.setSeed(seed);
   dicePRNG.setSeed(seed);
@@ -4051,8 +4058,8 @@ function togglePlay(){
   const mb=document.getElementById('minPlayBtn');
   if(mb){ mb.textContent=running?'⏸':'▶'; mb.classList.toggle('on',running); }
 }
-function reset(preserveView=false){
-  seedForRun();
+function reset(preserveView=false, forcedSeed=null){
+  seedForRun(forcedSeed);
   if(!preserveView){ zoom=1; panX=0; panY=0; }
   buildBoard();initFieldArrays();
   for(const sp of Object.values(SPARKS)){sp.buf.fill(0);sp.pos=0;}
@@ -5614,12 +5621,19 @@ document.getElementById('io-copy-btn')?.addEventListener('click',()=>{
 });
 
 // ── SEED CONTROLS (physics + dice, wired identically) ───────────────────────
-function wireSeedControls(inputId, msgId, randomBtnId, copyBtnId, pasteBtnId){
+function wireSeedControls(inputId, msgId, loadBtnId, randomBtnId, copyBtnId, pasteBtnId){
   const inputEl=document.getElementById(inputId), msgEl=document.getElementById(msgId);
   function flash(t){ if(msgEl){ msgEl.textContent=t; } }
+  document.getElementById(loadBtnId)?.addEventListener('click',()=>{
+    const v = (inputEl.value||'').trim() || freshSeedString();
+    const pinEl = document.getElementById('seedPin');
+    if(pinEl) pinEl.checked = true;
+    reset(true, v);
+    flash(`loaded & pinned — run restarted with seed "${v}".`);
+  });
   document.getElementById(randomBtnId)?.addEventListener('click',()=>{
     inputEl.value = freshSeedString();
-    flash('randomized. takes effect on next reset.');
+    flash('randomized. click LOAD SEED & RESTART (or reset) to apply.');
   });
   document.getElementById(copyBtnId)?.addEventListener('click',()=>{
     navigator.clipboard?.writeText(inputEl.value).then(()=>{
@@ -5632,13 +5646,13 @@ function wireSeedControls(inputId, msgId, randomBtnId, copyBtnId, pasteBtnId){
   document.getElementById(pasteBtnId)?.addEventListener('click',()=>{
     navigator.clipboard?.readText().then(t=>{
       inputEl.value = t.trim();
-      flash('pasted. takes effect on next reset.');
+      flash('pasted. click LOAD SEED & RESTART (or reset) to apply.');
     }).catch(()=>{
       flash("couldn't read clipboard — paste manually into the field.");
     });
   });
 }
-wireSeedControls('seedInput','seedMsg','seedRandomBtn','seedCopyBtn','seedPasteBtn');
+wireSeedControls('seedInput','seedMsg','seedLoadBtn','seedRandomBtn','seedCopyBtn','seedPasteBtn');
 
 // ── PNG BOARD EXPORT ─────────────────────────────────────────────────────────
 let _pngMode = 'flat';
