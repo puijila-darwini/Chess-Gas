@@ -1063,9 +1063,9 @@ body[data-layout="phone"] #ph-backdrop.ph-open{display:block}
             line-height:1.6;padding:3px 2px;min-height:3em;border:1px solid var(--border);
             border-radius:2px;background:var(--bg2);margin-bottom:3px"></div>
           <div class="row" style="gap:4px">
-            <button class="mini-btn" id="exp-load-btn" style="flex:1">▶ LOAD INTO SETTINGS STRING</button>
+            <button class="mini-btn" id="exp-load-btn" style="flex:1">▶ LOAD &amp; RESTART</button>
           </div>
-          <div style="font-size:var(--fs-sm);color:var(--text3);padding:4px 0 0">loads into the settings string box below — tap IMPORT there to apply it.</div>
+          <div id="exp-msg" style="font-size:var(--fs-sm);color:var(--accent2);padding:2px 0;min-height:1.2em"></div>
           <div class="row-sep"></div>
           <div class="row" style="gap:4px">
             <button class="mini-btn dice-btn" id="randomEverythingBtn" style="flex:1;position:relative"><span class="dice-label">⚄ RANDOM EVERYTHING</span><span class="dice-mode-dot"></span></button>
@@ -1075,18 +1075,12 @@ body[data-layout="phone"] #ph-backdrop.ph-open{display:block}
     </div>
 
     <div class="section">
-      <div class="section-hdr open" data-target="io-settings-body"><span>SETTINGS STRING</span><span class="arrow">▶</span></div>
-      <div class="sec-body" id="io-settings-body">
-        <div style="font-size:var(--fs-sm);color:var(--text3);padding:0 0 4px 0">every modifiable setting, as one paste-able string. board contents are not included.</div>
-        <textarea id="io-settings-text" rows="4" style="width:100%;background:var(--bg2);color:var(--text);
-          border:1px solid var(--border);padding:4px;font-family:inherit;font-size:var(--fs-sm);
-          resize:vertical;outline:none" placeholder="paste a settings string here, or tap export"></textarea>
-        <div class="row" style="gap:4px;margin-top:4px">
-          <button class="mini-btn" id="io-export-btn" style="flex:1">↓ EXPORT</button>
-          <button class="mini-btn" id="io-import-btn" style="flex:1">↑ IMPORT</button>
-          <button class="mini-btn" id="io-copy-btn">⧉ COPY</button>
+      <div class="section-hdr open" data-target="setup-body"><span>CURRENT SETUP</span><span class="arrow">▶</span></div>
+      <div class="sec-body" id="setup-body">
+        <div class="row" style="justify-content:flex-end;padding-bottom:2px">
+          <button class="mini-btn" id="setup-refresh-btn" title="Re-read the current controls (in case you changed something without resetting)">↻ REFRESH</button>
         </div>
-        <div id="io-settings-msg" style="font-size:var(--fs-sm);color:var(--accent2);padding:4px 0 0;min-height:1.2em"></div>
+        <div id="setup-body-content"></div>
       </div>
     </div>
 
@@ -1104,6 +1098,22 @@ body[data-layout="phone"] #ph-backdrop.ph-open{display:block}
         </label>
         <button class="mini-btn" id="io-png-export-btn" style="width:100%">⬇ EXPORT PNG</button>
         <div id="io-png-msg" style="font-size:var(--fs-sm);color:var(--accent2);padding:4px 0 0;min-height:1.2em"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-hdr" data-target="io-settings-body"><span>SETTINGS STRING</span><span class="arrow">▶</span></div>
+      <div class="sec-body hidden" id="io-settings-body">
+        <div style="font-size:var(--fs-sm);color:var(--text3);padding:0 0 4px 0">every modifiable setting, as one paste-able string. board contents are not included. mainly useful for sharing a run outside the app, or backing one up — the PRESETS section above is the quicker way to load something in-app.</div>
+        <textarea id="io-settings-text" rows="4" style="width:100%;background:var(--bg2);color:var(--text);
+          border:1px solid var(--border);padding:4px;font-family:inherit;font-size:var(--fs-sm);
+          resize:vertical;outline:none" placeholder="paste a settings string here, or tap export"></textarea>
+        <div class="row" style="gap:4px;margin-top:4px">
+          <button class="mini-btn" id="io-export-btn" style="flex:1">↓ EXPORT</button>
+          <button class="mini-btn" id="io-import-btn" style="flex:1">↑ IMPORT</button>
+          <button class="mini-btn" id="io-copy-btn">⧉ COPY</button>
+        </div>
+        <div id="io-settings-msg" style="font-size:var(--fs-sm);color:var(--accent2);padding:4px 0 0;min-height:1.2em"></div>
       </div>
     </div>
 </div><!-- /io-panel -->
@@ -2367,8 +2377,8 @@ const SETTINGS_SCHEMA = {
             {id:'fxPulse', type:'check'},{id:'fxPulseRainbow', type:'check'},'fxPulseCol','fxPulseSpeed'],
 };
 
-function exportSettingsString(){
-  const data = {v:CURRENT_SETTINGS_VERSION, wHue, bHue};
+function collectSettingsData(){
+  const data = {};
   for(const group in SETTINGS_SCHEMA){
     data[group] = {};
     for(const entry of SETTINGS_SCHEMA[group]){
@@ -2379,6 +2389,10 @@ function exportSettingsString(){
       data[group][id] = type==='check' ? el.checked : el.value;
     }
   }
+  return data;
+}
+function exportSettingsString(){
+  const data = Object.assign({v:CURRENT_SETTINGS_VERSION, wHue, bHue}, collectSettingsData());
   return btoa(encodeURIComponent(JSON.stringify(data)));
 }
 
@@ -2405,10 +2419,91 @@ function migrateSettingsData(data){
   return data;
 }
 
+function decodeSettingsBlob(str){
+  try{ return JSON.parse(decodeURIComponent(atob(str.trim()))); }
+  catch(e){ return null; }
+}
+
+// ── "current setup" summary ─────────────────────────────────────────────────
+// Plain-English readout of what's about to run: the starting layout (always
+// shown, since it's a fact not a deviation) plus any physics/autostop/spawn
+// rule that differs from the "default board" built-in preset (BUILT_IN_PRESETS
+// is defined later in the file but that's fine — this only reads it at call
+// time, well after the whole script has run). Display/cosmetic fields are
+// deliberately excluded — this is about the physics, not the colour scheme.
+let _defaultSettingsDataCache = null;
+function getDefaultSettingsData(){
+  if(_defaultSettingsDataCache) return _defaultSettingsDataCache;
+  const blob = (typeof BUILT_IN_PRESETS!=='undefined' && BUILT_IN_PRESETS[0]) ? BUILT_IN_PRESETS[0].blob : null;
+  _defaultSettingsDataCache = blob ? decodeSettingsBlob(blob) : null;
+  return _defaultSettingsDataCache;
+}
+const RULE_LABELS = {
+  topoMode:'topology', speedLimit:'speed limit', collisionMode:'collision mode',
+  inelasticP:'inelastic probability', explodeRadius:'explosion radius', promoMode:'promotion mode',
+  decayMode:'decay mode', decayRate:'decay rate', moveMode2:'move mode', betaSlider:'β (move selectivity)',
+  potentialMode:'potential mode', potPolarity:'potential polarity', potValueWeight:'value-weighted potential',
+  potPreset:'potential preset', 'pot-param':'potential parameter', dynPotMode:'dynamic potential mode',
+  dynFreq:'dynamic frequency', dynAmp:'dynamic amplitude', pieceGenMode:'piece-generated field',
+  pieceGenStrength:'piece-field strength', pieceGenRadius:'piece-field radius',
+  equilConditions:'stop condition', equilGate:'stop gate', equilAction:'stop action',
+  equilNoCap:'no-capture threshold', equilMatPct:'material-imbalance threshold', equilNTurns:'turn limit',
+  equilSens:'sensitivity', equilTimeSec:'time limit (s)', equilPieceCount:'piece-count threshold',
+  equilPromotions:'promotion threshold',
+  ssRate:'source/sink rate', ssSpawnType:'spawn piece type', ssBrushMode:'brush mode',
+  brushStr:'brush strength', brushR:'brush radius',
+};
+function prettyRuleValue(v){
+  if(v===true) return 'on'; if(v===false) return 'off';
+  return String(v);
+}
+function describeCurrentSetup(){
+  const cur = collectSettingsData();
+  const def = getDefaultSettingsData();
+  const L = cur.layout || {};
+  const layoutParts = [];
+  if(L.nsel && L['nsel-h']) layoutParts.push(`${L.nsel}×${L['nsel-h']} board`);
+  if(L.initsel) layoutParts.push(`${L.initsel} placement`);
+  if(L.layoutPattern) layoutParts.push(`${L.layoutPattern} pattern`);
+  if(L.layoutPieces) layoutParts.push(`${L.layoutPieces} pieces`);
+  if(L.layoutColour) layoutParts.push(`${L.layoutColour} colours`);
+  if(L.density) layoutParts.push(`${L.density}% density`);
+
+  const rules = [];
+  if(def){
+    for(const group of ['physics','autostop','plop']){
+      for(const entry of SETTINGS_SCHEMA[group]){
+        const id = typeof entry==='string' ? entry : entry.id;
+        const curV = cur[group]?.[id], defV = def[group]?.[id];
+        if(curV===undefined || defV===undefined) continue;
+        if(String(curV)!==String(defV)){
+          rules.push({label: RULE_LABELS[id]||id, cur: prettyRuleValue(curV), def: prettyRuleValue(defV)});
+        }
+      }
+    }
+  }
+  return {layoutLine: layoutParts.join(', ') || '—', rules};
+}
+function renderCurrentSetup(){
+  const el = document.getElementById('setup-body-content');
+  if(!el) return;
+  const {layoutLine, rules} = describeCurrentSetup();
+  let html = `<div style="font-size:var(--fs-lbl);color:var(--text);padding:0 0 6px">${layoutLine}</div>`;
+  if(rules.length){
+    html += `<div style="font-size:var(--fs-sm);color:var(--text3);padding:0 0 2px">special rules, deviating from default physics:</div>`;
+    html += '<ul style="margin:0 0 0 16px;padding:0;font-size:var(--fs-sm);color:var(--text2)">' +
+      rules.map(r=>`<li style="padding:1px 0">${r.label}: <b>${r.cur}</b> <span style="color:var(--text3)">(default: ${r.def})</span></li>`).join('') +
+      '</ul>';
+  } else {
+    html += `<div style="font-size:var(--fs-sm);color:var(--text3)">no special rules — default physics.</div>`;
+  }
+  el.innerHTML = html;
+}
+
 function importSettingsString(str){
-  let data;
-  try{ data = JSON.parse(decodeURIComponent(atob(str.trim()))); }
-  catch(e){ return {ok:false, reason:'unreadable'}; }
+  const data0 = decodeSettingsBlob(str);
+  if(!data0) return {ok:false, reason:'unreadable'};
+  let data = data0;
   if(!data || typeof data!=='object') return {ok:false, reason:'unreadable'};
   if(typeof data.v!=='number'){
     return {ok:false, reason:'unversioned'};
@@ -4076,6 +4171,7 @@ function reset(preserveView=false, forcedSeed=null){
   pieceGenMap=null;
   selectedCell=null; trajectoryBuf=[];
   flowField=null;
+  renderCurrentSetup();
 }
 
 document.getElementById('playBtn').addEventListener('click',togglePlay);
@@ -5083,9 +5179,14 @@ const BUILT_IN_PRESETS = [
 ];
 function applyPresetBlob(blob){
   const ta = document.getElementById('io-settings-text');
-  if(ta) ta.value = blob;
-  const msg = document.getElementById('io-settings-msg');
-  if(msg) msg.textContent = '';
+  if(ta) ta.value = blob; // still mirrored here for anyone who wants to inspect/copy the raw string
+  const r = importSettingsString(blob);
+  const msg = document.getElementById('exp-msg');
+  if(!msg) return r;
+  if(r.ok) msg.textContent = 'loaded — run restarted.';
+  else if(r.reason==='newer') msg.textContent = `this preset is from a newer version (v${r.fileVersion}) — update chess gas to load it.`;
+  else msg.textContent = "couldn't load this preset — it may be corrupted.";
+  return r;
 }
 
 function buildExperimentList(){
@@ -5264,6 +5365,7 @@ document.getElementById('randomPhysicsBtn')?.addEventListener('click', randomPhy
     const mode = diceMode===0 ? 'both' : diceMode===1 ? 'physics' : 'display';
     runRandomizeWithPct(mode, pct);
   }
+  window.diceExec = execMode; // exposed so other UI (e.g. the seed Load button) can trigger the currently-selected dice action
 
   function refreshButton(id) {
     const b = document.getElementById(id);
@@ -5628,8 +5730,10 @@ function wireSeedControls(inputId, msgId, loadBtnId, randomBtnId, copyBtnId, pas
     const v = (inputEl.value||'').trim() || freshSeedString();
     const pinEl = document.getElementById('seedPin');
     if(pinEl) pinEl.checked = true;
-    reset(true, v);
-    flash(`loaded & pinned — run restarted with seed "${v}".`);
+    seedForRun(v);         // seed both streams to v now, so the dice roll below is deterministic
+    window.diceExec?.();   // re-roll whatever the 🎲 button is currently set to (both/physics/display)
+    reset(true, v);        // rebuild the board using the freshly-rolled params; reseeds both streams to v again
+    flash(`loaded & pinned — run restarted with seed "${v}" (dice re-rolled too).`);
   });
   document.getElementById(randomBtnId)?.addEventListener('click',()=>{
     inputEl.value = freshSeedString();
@@ -5653,6 +5757,7 @@ function wireSeedControls(inputId, msgId, loadBtnId, randomBtnId, copyBtnId, pas
   });
 }
 wireSeedControls('seedInput','seedMsg','seedLoadBtn','seedRandomBtn','seedCopyBtn','seedPasteBtn');
+document.getElementById('setup-refresh-btn')?.addEventListener('click', renderCurrentSetup);
 
 // ── PNG BOARD EXPORT ─────────────────────────────────────────────────────────
 let _pngMode = 'flat';
