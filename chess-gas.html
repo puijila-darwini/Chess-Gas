@@ -55,6 +55,10 @@ html.ph-mode body{
 .tb-btn:hover{border-color:var(--border2);background:linear-gradient(to bottom,#FFFFFF 0%,#D2E0EE 100%)}
 .tb-btn:active{background:linear-gradient(to bottom,#CBDBEA 0%,#E4ECF4 100%);box-shadow:inset 0 1px 3px rgba(30,50,70,.25)}
 .tb-btn.on{border-color:#3A9B4A;color:#1E7A2E;background:linear-gradient(to bottom,#E6F7E9,#C9EBD0)}
+.tb-btn:disabled{opacity:0.4;cursor:not-allowed;pointer-events:none}
+.tb-btn.danger{border-color:#c0392b;color:#fff;background:linear-gradient(to bottom,#e0564a,#c0392b);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 1px 1px rgba(30,50,70,.08)}
+.tb-btn.danger:hover{background:linear-gradient(to bottom,#e8695e,#a8332a)}
+.tb-run-status{font-size:var(--fs-sm);color:var(--accent2);white-space:nowrap}
 .tb-sel{background:linear-gradient(to bottom,#FFFFFF 0%,var(--bg2) 100%);color:var(--text);border:1px solid var(--border);
   border-radius:3px;padding:2px 5px;font-family:inherit;font-size:var(--fs);cursor:pointer;outline:none;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.8)}
@@ -384,6 +388,8 @@ body[data-layout="phone"] #ph-backdrop.ph-open{display:block}
   <button class="tb-btn" id="resetBtn" title="Reset [R]">↺</button>
   <button class="tb-btn" id="jitterBtn" title="Jitter pieces [J]">⇄</button>
   <button class="tb-btn dice-btn" id="randomEverythingTopBtn" title="Randomise (hold for mode)"><span class="dice-label">⚄</span><span class="dice-mode-dot"></span></button>
+  <button class="tb-btn danger" id="runStopBtn" title="Stop the active export run" style="display:none">⏹ STOP RUN</button>
+  <span class="tb-run-status" id="tbRunStatus" style="display:none"></span>
   <span class="tb-sep">|</span>
   <span class="tb-lbl">SPEED</span>
   <select class="tb-sel" id="mpf">
@@ -1126,10 +1132,6 @@ body[data-layout="phone"] #ph-backdrop.ph-open{display:block}
           <span class="exp-fx-label">rainbow</span>
           <input type="checkbox" id="exp-r-rainbow"><input type="checkbox" id="exp-v-rainbow">
         </div>
-        <div class="exp-fx-row">
-          <span class="exp-fx-label">sparkle cursor<span class="tip tip-left"><span class="tip-icon">?</span><span class="tip-box">Cursor sparkles only exist during live interaction — there's no cursor in a static exported image, so there's nothing to place. Not a raster/vector distinction: this can never be exported.</span></span></span>
-          <input type="checkbox" id="exp-r-sparklecursor" disabled><input type="checkbox" id="exp-v-sparklecursor" disabled>
-        </div>
         <div style="font-size:var(--fs-sm);color:var(--text3);padding:4px 0">glyphs off = flat colour dump (1px/cell in raster, squares-only in vector) — compact at any board size. gradient/pulse/rainbow read their colour, direction, and intensity from the live DISPLAY→EFFECTS sliders; these checkboxes only control whether each is included.</div>
 
         <div class="section" style="margin:6px 0 0;border:1px solid var(--border)">
@@ -1220,6 +1222,32 @@ body[data-layout="phone"] #ph-backdrop.ph-open{display:block}
         </div>
         <button class="mini-btn" id="io-render-both-btn" style="width:100%;margin-top:4px">⬇ RENDER: BOTH</button>
         <div id="io-png-msg" style="font-size:var(--fs-sm);color:var(--accent2);padding:4px 0 0;min-height:1.2em"></div>
+
+        <div class="section" style="margin:8px 0 0;border:1px solid var(--border)">
+          <div class="section-hdr" data-target="io-run-body" style="font-size:var(--fs-sm)"><span>AUTO-CAPTURE (EXPORT RUN)</span><span class="arrow">▶</span></div>
+          <div class="sec-body hidden" id="io-run-body">
+            <div style="font-size:var(--fs-sm);color:var(--text3);padding:0 0 4px">steps the sim on its own — not paced to the display, so it runs as fast as this tab can go — and writes a capture to a folder every N ticks. Uses whatever the RASTER/VECTOR panels above are currently set to, frozen for the whole run.</div>
+            <div id="io-run-nosupport" style="display:none;font-size:var(--fs-sm);color:#e0a95c;padding:2px 0">Export runs need Chrome's File System Access API — this browser doesn't support it, so this is disabled here.</div>
+            <div class="row" style="gap:12px;padding:2px 0">
+              <label style="display:flex;align-items:center;gap:5px;font-size:var(--fs-lbl);color:var(--text2);cursor:pointer">
+                <input type="checkbox" id="io-run-raster" checked> raster
+              </label>
+              <label style="display:flex;align-items:center;gap:5px;font-size:var(--fs-lbl);color:var(--text2);cursor:pointer">
+                <input type="checkbox" id="io-run-vector"> vector
+              </label>
+            </div>
+            <div class="row" style="gap:6px;align-items:center;padding-top:4px">
+              <label style="font-size:var(--fs-sm);color:var(--text3)">every</label>
+              <input type="number" id="io-run-interval" value="100" min="1" step="1" style="width:56px">
+              <label style="font-size:var(--fs-sm);color:var(--text3)">ticks, for</label>
+              <input type="number" id="io-run-total" value="0" min="0" step="100" style="width:64px">
+              <label style="font-size:var(--fs-sm);color:var(--text3)">ticks (0 = until stopped)</label>
+            </div>
+            <div id="io-run-estimate" style="font-size:var(--fs-sm);color:var(--text3);padding:4px 0"></div>
+            <button class="mini-btn" id="io-run-start-btn" style="width:100%;margin-top:2px">▶ START EXPORT RUN</button>
+            <div id="io-run-status" style="font-size:var(--fs-sm);color:var(--accent2);padding:4px 0 0;min-height:1.2em"></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -6325,10 +6353,14 @@ document.querySelectorAll('.section-hdr[data-target="io-png-body"]').forEach(hdr
   hdr.addEventListener('click', updateExportAvailability);
 });
 
-// Sensible starting point: mirror what's currently visible live, rather
-// than opening every export panel unchecked and making the person re-toggle
-// everything they can already see on screen. Still fully independent from
-// that point on — this only sets the initial state, once.
+// Default to whatever's actually active in the live view — bloom/bodies/
+// trail/field/gradient/pulse/rainbow only start checked if their live
+// counterpart is currently on. Forcing everything on regardless of live
+// state produced exports with bloom and capture-debris bodies even on the
+// default screen, where neither is enabled — not what a "sensible default"
+// should mean. Glyphs are the one exception: always on by default, since
+// there's no live "show pieces" toggle this should track (see the export
+// panel's own comment about opts.glyphs subsuming that).
 function initExportCheckboxDefaults(){
   const liveTrail = document.getElementById('trailMode')?.value!=='none';
   const liveField = fieldMode!=='none';
@@ -6342,7 +6374,7 @@ function initExportCheckboxDefaults(){
     set('trail', liveTrail); set('field', liveField); set('bodies', liveBodies);
     set('gradient', liveGrad); set('pulse', livePulse); set('rainbow', liveRainbow);
   });
-  document.getElementById('exp-r-bloom').checked = liveBloom; // vector bloom stays permanently unchecked+disabled, set via the HTML disabled attribute
+  document.getElementById('exp-r-bloom').checked = liveBloom; // exp-v-bloom stays unchecked — permanently disabled, see the HTML.
   updateExportAvailability();
 }
 initExportCheckboxDefaults();
@@ -6356,20 +6388,19 @@ function exportBoardPNG(opts){
   // spinner because the main thread never got a chance to repaint.
   setTimeout(()=>_doExportBoardPNG(opts), 30);
 }
-function _doExportBoardPNG(opts){
-  const msg = document.getElementById('io-png-msg');
+// Pure rendering core: builds the export canvas from opts and returns a
+// blob (plus sizing info), with no download or message side-effects. Used
+// by both the single-shot download path below AND the batch export run,
+// so a hundred-capture run can't silently drift from what a one-off
+// button click produces — same function, either way.
+async function buildPngBlob(opts, sizeState){
   const mode = opts.glyphs ? 'glyph' : 'flat';
   const _fx = getSquareFxState({gradOn:opts.gradient, pulseOn:opts.pulse, rainbowOn:opts.rainbow});
   const exCanvas = document.createElement('canvas');
   const exCtx = exCanvas.getContext('2d');
   let cellPx;
-  // print-size mode only applies to glyph-mode renders — flat mode is a
-  // 1px/cell data dump with no meaningful "physical size" to speak of.
-  const sizeState = (mode!=='flat' && document.getElementById('io-size-r-enable')?.checked)
-    ? computeSizeExportDims('r') : null;
   if(sizeState && sizeState.blocked){
-    if(msg) msg.textContent = `${sizeState.pxW}×${sizeState.pxH}px is too large to export — reduce the print size or DPI.`;
-    return;
+    return {error: `${sizeState.pxW}×${sizeState.pxH}px is too large to export — reduce the print size or DPI.`};
   }
 
   if(mode==='flat'){
@@ -6432,18 +6463,30 @@ function _doExportBoardPNG(opts){
 
   if(mode==='flat') compositeEffectsOntoExport(exCtx, exCanvas, cellPx, opts);
 
-  exCanvas.toBlob(async blob=>{
-    if(!blob){ if(msg) msg.textContent='export failed — image may be too large for this browser.'; return; }
-    const finalBlob = await patchPngMetadata(blob, {dpi: sizeState?sizeState.effDpi:null, metadata: collectExportMetadata(opts)});
-    const url=URL.createObjectURL(finalBlob);
-    const a=document.createElement('a');
-    a.href=url; a.download=`chess-gas-${N}x${H}-${mode}-step${stepCount}.png`;
-    a.click();
-    URL.revokeObjectURL(url);
-    if(msg) msg.textContent = sizeState
-      ? `exported ${exCanvas.width}×${exCanvas.height}px @ ${sizeState.effDpi.toFixed(0)}dpi (${fmtLen('r',sizeState.widthIn)}×${fmtLen('r',sizeState.heightIn)}).`
-      : `exported ${exCanvas.width}×${exCanvas.height}px.`;
+  return new Promise(resolve=>{
+    exCanvas.toBlob(async blob=>{
+      if(!blob){ resolve({error:'export failed — image may be too large for this browser.'}); return; }
+      const finalBlob = await patchPngMetadata(blob, {dpi: sizeState?sizeState.effDpi:null, metadata: collectExportMetadata(opts)});
+      resolve({blob:finalBlob, mode, pxW:exCanvas.width, pxH:exCanvas.height});
+    });
   });
+}
+async function _doExportBoardPNG(opts){
+  const msg = document.getElementById('io-png-msg');
+  // print-size mode only applies to glyph-mode renders — flat mode is a
+  // 1px/cell data dump with no meaningful "physical size" to speak of.
+  const sizeState = (opts.glyphs && document.getElementById('io-size-r-enable')?.checked)
+    ? computeSizeExportDims('r') : null;
+  const result = await buildPngBlob(opts, sizeState);
+  if(result.error){ if(msg) msg.textContent = result.error; return; }
+  const url=URL.createObjectURL(result.blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`chess-gas-${N}x${H}-${result.mode}-step${stepCount}.png`;
+  a.click();
+  URL.revokeObjectURL(url);
+  if(msg) msg.textContent = sizeState
+    ? `exported ${result.pxW}×${result.pxH}px @ ${sizeState.effDpi.toFixed(0)}dpi (${fmtLen('r',sizeState.widthIn)}×${fmtLen('r',sizeState.heightIn)}).`
+    : `exported ${result.pxW}×${result.pxH}px.`;
 }
 // A render is a snapshot - pause first so the sim can't keep stepping (and
 // trail/flash state can't keep changing) during the deferred draw an export
@@ -6469,13 +6512,13 @@ function exportBoardSVG(opts){
   if(msg) msg.innerHTML = '<span class="png-spinner"></span> rendering…';
   setTimeout(()=>_doExportBoardSVG(opts), 30);
 }
-function _doExportBoardSVG(opts){
-  const msg = document.getElementById('io-png-msg');
+// Pure rendering core, mirroring buildPngBlob's shape — no download/message
+// side-effects, so the batch export run can call it directly.
+function buildSvgBlob(opts, sizeState){
   const mode = opts.glyphs ? 'glyph' : 'flat';
   const _fx = getSquareFxState({gradOn:opts.gradient, pulseOn:opts.pulse, rainbowOn:opts.rainbow});
   const drawGlyphs = opts.glyphs;
   const CELL = 1;
-  const sizeState = document.getElementById('io-size-v-enable')?.checked ? computeSizeExportDims('v') : null;
 
   const parts = [];
   parts.push('<?xml version="1.0" encoding="UTF-8"?>');
@@ -6550,6 +6593,12 @@ function _doExportBoardSVG(opts){
 
   parts.push('</svg>');
   const blob = new Blob([parts.join('\n')], {type:'image/svg+xml'});
+  return {blob, mode};
+}
+function _doExportBoardSVG(opts){
+  const msg = document.getElementById('io-png-msg');
+  const sizeState = document.getElementById('io-size-v-enable')?.checked ? computeSizeExportDims('v') : null;
+  const {blob, mode} = buildSvgBlob(opts, sizeState);
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href=url; a.download=`chess-gas-${N}x${H}-${mode}-step${stepCount}.svg`;
@@ -6568,6 +6617,203 @@ document.getElementById('io-render-both-btn')?.addEventListener('click',()=>{
   exportBoardPNG(collectExportOpts('r'));
   exportBoardSVG(collectExportOpts('v'));
 });
+
+// ── AUTO-CAPTURE (EXPORT RUN) ────────────────────────────────────────────
+// Steps the sim in a tight loop — not paced to the display like normal
+// play — and writes a raster and/or vector capture to a chosen folder
+// every N ticks, via the File System Access API (Chrome only; there's no
+// good fallback, so this is just disabled elsewhere rather than degraded).
+// This is explicitly NOT trying to be fast/headless: it reuses the exact
+// per-tick sequence loop() already runs (minus the draw calls), duplicated
+// here rather than factored into a shared helper. That factoring is
+// properly the job of the separately-planned headless simulation-core
+// work; this run mechanism is a stopgap ahead of it, and deliberately
+// doesn't touch that code.
+function humanBytes(n){
+  if(n<1024) return `${n|0}B`;
+  if(n<1024*1024) return `${(n/1024).toFixed(0)}KB`;
+  if(n<1024*1024*1024) return `${(n/1024/1024).toFixed(1)}MB`;
+  return `${(n/1024/1024/1024).toFixed(2)}GB`;
+}
+// Very rough size guesses (compression ratios vary a lot with content) —
+// good enough to flag "this is going to be huge", not a precise quote.
+function estimateRasterCaptureBytes(){
+  const sizeOn = document.getElementById('io-size-r-enable')?.checked;
+  const s = sizeOn ? computeSizeExportDims('r') : null;
+  const cellPx = s ? s.cellPx : Math.max(4,Math.min(24,Math.floor(16000/Math.max(N,H))));
+  const pxW=N*cellPx, pxH=H*cellPx;
+  return {bytes: pxW*pxH*0.4, pxW, pxH};
+}
+function estimateVectorCaptureBytes(){
+  return N*H*40 + 4000; // ~40B/cell (rect+possible effects) + font/header overhead
+}
+function updateRunEstimate(){
+  const el = document.getElementById('io-run-estimate');
+  if(!el) return;
+  const doR = document.getElementById('io-run-raster')?.checked;
+  const doV = document.getElementById('io-run-vector')?.checked;
+  if(!doR && !doV){ el.textContent='pick at least one format.'; el.style.color='#e0a95c'; return; }
+  const interval = Math.max(1, parseInt(document.getElementById('io-run-interval')?.value)||100);
+  const total = Math.max(0, parseInt(document.getElementById('io-run-total')?.value)||0);
+  const captures = total>0 ? Math.floor(total/interval) : null;
+  let perCapture=0, parts=[];
+  if(doR){ const r=estimateRasterCaptureBytes(); perCapture+=r.bytes; parts.push(`raster ~${humanBytes(r.bytes)} (${r.pxW}×${r.pxH}px)`); }
+  if(doV){ const b=estimateVectorCaptureBytes(); perCapture+=b; parts.push(`vector ~${humanBytes(b)}`); }
+  let txt = parts.join(', ') + ' per capture';
+  if(captures!==null){
+    const totalBytes = perCapture*captures;
+    txt += ` — ${captures} captures, ~${humanBytes(totalBytes)} total`;
+    el.style.color = totalBytes>500*1024*1024 ? '#e0a95c' : 'var(--text3)';
+  } else {
+    txt += ' — runs until stopped, so total size depends on how long you let it go';
+    el.style.color = 'var(--text3)';
+  }
+  el.textContent = txt;
+}
+['io-run-raster','io-run-vector','io-run-interval','io-run-total'].forEach(id=>{
+  document.getElementById(id)?.addEventListener('input', updateRunEstimate);
+  document.getElementById(id)?.addEventListener('change', updateRunEstimate);
+});
+updateRunEstimate();
+if(!window.showDirectoryPicker){
+  const w=document.getElementById('io-run-nosupport'); if(w) w.style.display='';
+  const b=document.getElementById('io-run-start-btn'); if(b) b.disabled=true;
+}
+
+async function writeToDir(dirHandle, filename, blob){
+  const fh = await dirHandle.getFileHandle(filename, {create:true});
+  const w = await fh.createWritable();
+  await w.write(blob);
+  await w.close();
+}
+
+let _exportRunActive=false, _exportRunStopRequested=false;
+// Sets a run status message in both places it's shown — the EXPORT tab
+// (if open) and the always-visible toolbar indicator, so progress is
+// visible without needing that tab open.
+function setRunStatusText(txt){
+  const a=document.getElementById('io-run-status'); if(a) a.textContent=txt;
+  const b=document.getElementById('tbRunStatus'); if(b) b.textContent=txt;
+}
+// The front-page controls (Play/Step/Reset/Jitter/Randomise) all mutate
+// simulation state directly, same as the run's own loop does — running
+// either while a run is active would step the board from two places at
+// once. Rather than the previous approach (silently swallowing their
+// clicks), they're now genuinely disabled — a real HTML disabled button
+// can't fire a click event at all, which is more robust than intercepting
+// one — and a dedicated STOP RUN button takes their place as the one
+// active, obviously-labelled control for what's actually running. Covers
+// the minimal-mode duplicate buttons too, since those just forward .click()
+// to these same elements and a disabled element won't respond to that either.
+function setRunUIActive(active){
+  const btn=document.getElementById('io-run-start-btn');
+  if(btn){
+    btn.textContent = active ? '■ STOP EXPORT RUN' : '▶ START EXPORT RUN';
+    btn.onclick = active ? stopExportBatch : runExportBatch;
+  }
+  ['io-run-raster','io-run-vector','io-run-interval','io-run-total'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.disabled=active;
+  });
+  ['playBtn','stepBtn','resetBtn','jitterBtn','randomEverythingTopBtn','minPlayBtn','minResetBtn'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.disabled=active;
+  });
+  const stopBtn=document.getElementById('runStopBtn');
+  if(stopBtn) stopBtn.style.display = active ? '' : 'none';
+  const statusEl=document.getElementById('tbRunStatus');
+  if(statusEl) statusEl.style.display = active ? '' : 'none';
+  if(!active) setRunStatusText('');
+}
+document.getElementById('runStopBtn')?.addEventListener('click', stopExportBatch);
+function stopExportBatch(){ _exportRunStopRequested=true; setRunStatusText('stopping…'); }
+
+async function runExportBatch(){
+  if(!window.showDirectoryPicker) return;
+  const doR = document.getElementById('io-run-raster')?.checked;
+  const doV = document.getElementById('io-run-vector')?.checked;
+  if(!doR && !doV){ setRunStatusText('pick at least one format.'); return; }
+  const interval = Math.max(1, parseInt(document.getElementById('io-run-interval')?.value)||100);
+  const total = Math.max(0, parseInt(document.getElementById('io-run-total')?.value)||0);
+
+  let dirHandle;
+  try{ dirHandle = await window.showDirectoryPicker(); }
+  catch(e){ return; } // person cancelled the picker — not an error, just don't start
+  pauseForExport();
+
+  // Freeze opts/size ONCE for the whole run, not re-read per capture — every
+  // file in a run should be directly comparable (same DPI/size/effects), not
+  // silently drift if a setting gets nudged mid-run. DPI is the anchor,
+  // physical size is downstream of it, matching the earlier design call.
+  const rOpts = collectExportOpts('r'), vOpts = collectExportOpts('v');
+  const rSizeState = doR && document.getElementById('io-size-r-enable')?.checked ? computeSizeExportDims('r') : null;
+  const vSizeState = doV && document.getElementById('io-size-v-enable')?.checked ? computeSizeExportDims('v') : null;
+
+  _exportRunActive=true; _exportRunStopRequested=false;
+  setRunUIActive(true);
+  const manifest = { run: collectExportMetadata({raster:doR, vector:doV, interval, total}), captures: [] };
+  let t=0, captured=0;
+  try{
+    while(_exportRunActive && !_exportRunStopRequested && (total===0 || t<total)){
+      // Per-tick simulation advance — the same sequence loop() runs minus
+      // the draw calls (see the section comment above for why this is
+      // duplicated rather than shared).
+      _topoMode = document.getElementById('topoMode').value;
+      _speedLimit = parseInt(document.getElementById('speedLimit').value)||0;
+      _potMode = document.getElementById('potentialMode').value;
+      _potPolarity = document.getElementById('potPolarity')?.value || 'symmetric';
+      _collMode = document.getElementById('collisionMode').value;
+      _inelasticP = parseInt(document.getElementById('inelasticP').value)/100;
+      _promoMode = document.getElementById('promoMode').value;
+      rebuildPieceLists();
+      step();
+      applyDecay();
+      applyDynamicPotential(1);
+      applyPieceGenPotential();
+      processSourcesSinks();
+      updateField();
+      flushCaptures();
+      sampleHistory(); samplePhase(en_last); sampleTrail(); checkEquilibrium();
+      if(document.getElementById('fxPulse')?.checked){
+        const spd=parseInt(document.getElementById('fxPulseSpeed')?.value||30)/100;
+        _pulsePhase=(_pulsePhase+spd*0.008)%1;
+      }
+      t++;
+      if(t % interval === 0){
+        const tickMeta = { tick: stepCount, capturedAt: new Date().toISOString(), files: [] };
+        if(doR){
+          const r = await buildPngBlob(rOpts, rSizeState);
+          if(!r.error){
+            const fn = `chess-gas-${N}x${H}-${r.mode}-step${stepCount}.png`;
+            await writeToDir(dirHandle, fn, r.blob);
+            tickMeta.files.push(fn);
+          }
+        }
+        if(doV){
+          const v = buildSvgBlob(vOpts, vSizeState);
+          const fn = `chess-gas-${N}x${H}-${v.mode}-step${stepCount}.svg`;
+          await writeToDir(dirHandle, fn, v.blob);
+          tickMeta.files.push(fn);
+        }
+        manifest.captures.push(tickMeta);
+        captured++;
+        setRunStatusText(`tick ${t}${total?'/'+total:''} — ${captured} captured`);
+      }
+      // Yield periodically so the tab stays responsive and the Stop button
+      // can actually be clicked — a tight synchronous loop over thousands
+      // of ticks would otherwise freeze the page until it finished.
+      if(t % 200 === 0) await new Promise(res=>setTimeout(res,0));
+    }
+  } finally {
+    await writeToDir(dirHandle, 'manifest.json', new Blob([JSON.stringify(manifest,null,2)],{type:'application/json'}));
+    _exportRunActive=false;
+    setRunUIActive(false);
+    setRunStatusText(`done — ${captured} captured, manifest.json written.`);
+    // The run never touched the live canvases — restore them now, matching
+    // loop()'s own draw-call sequence.
+    render();renderSourceSinksOverlay();renderField();renderFlowField();updateRight();
+    renderTrail();renderTrajectory();renderBodies();renderBloom();renderGlyphs();renderSparkleCursor();
+  }
+}
+setRunUIActive(false);
 
 // about-modal and about-close are after the script tag - wire on DOMContentLoaded
 document.addEventListener('DOMContentLoaded',()=>{
