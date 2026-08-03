@@ -92,6 +92,12 @@ input[type=range]{accent-color:var(--accent2);flex:1;min-width:0;height:10px}
 .mini-btn:hover{border-color:var(--border2);color:var(--accent)}
 .mini-btn:active{background:linear-gradient(to bottom,#CBDBEA 0%,#E4ECF4 100%);box-shadow:inset 0 1px 3px rgba(30,50,70,.2)}
 .mini-btn.on{border-color:var(--accent2);color:#fff;background:linear-gradient(to bottom,#3E86BE,#2E6DA4)}
+.exp-fx-row{display:grid;grid-template-columns:1fr 40px 40px;align-items:center;gap:4px;padding:2px 0}
+.exp-fx-row.hdr{color:var(--text3);font-size:var(--fs-sm);border-bottom:1px solid var(--border);padding-bottom:3px;margin-bottom:2px;text-align:center}
+.exp-fx-row.hdr span:first-child{text-align:left}
+.exp-fx-row input[type=checkbox]{justify-self:center}
+.exp-fx-row input[type=checkbox]:disabled{opacity:0.3;cursor:not-allowed}
+.exp-fx-label{font-size:var(--fs-lbl);color:var(--text2);display:flex;align-items:center;gap:4px}
 .icon-grid{display:flex;flex-wrap:wrap;gap:2px;margin:2px 0 3px 0}
 .ic-btn{background:linear-gradient(to bottom,#FFFFFF 0%,var(--bg2) 100%);border:1px solid var(--border);color:var(--text3);cursor:pointer;
   border-radius:3px;padding:3px 2px 2px;font-family:inherit;
@@ -1085,16 +1091,134 @@ body[data-layout="phone"] #ph-backdrop.ph-open{display:block}
     <div class="section">
       <div class="section-hdr open" data-target="io-png-body"><span>EXPORT IMAGE</span><span class="arrow">▶</span></div>
       <div class="sec-body" id="io-png-body">
-        <div style="font-size:var(--fs-sm);color:var(--text3);padding:0 0 4px 0">dumps the current board to a PNG. large boards make large files.</div>
-        <div class="row" style="gap:4px">
-          <button class="mini-btn png-mode-btn on" id="png-mode-flat" style="flex:1">flat colour</button>
-          <button class="mini-btn png-mode-btn" id="png-mode-glyph" style="flex:1">glyphs</button>
+        <div style="font-size:var(--fs-sm);color:var(--text3);padding:0 0 4px 0">dumps the current board to an image. pick what each output includes independently — greyed rows explain why they're unavailable.</div>
+
+        <div class="exp-fx-row hdr"><span>&nbsp;</span><span>raster</span><span>vector</span></div>
+        <div class="exp-fx-row">
+          <span class="exp-fx-label">glyphs (pieces)</span>
+          <input type="checkbox" id="exp-r-glyphs" checked><input type="checkbox" id="exp-v-glyphs" checked>
         </div>
-        <div style="font-size:var(--fs-sm);color:var(--text3);padding:4px 0">flat colour is 1px per cell — compact at any board size. glyphs render each piece at a readable size, so the file gets large fast on big boards.</div>
-        <label style="display:flex;align-items:center;gap:6px;font-size:var(--fs-lbl);color:var(--text2);padding:2px 0 6px;cursor:pointer">
-          <input type="checkbox" id="io-png-effects" checked> include effects (bloom, trails, field overlay, capture bodies)
-        </label>
-        <button class="mini-btn" id="io-png-export-btn" style="width:100%">⬇ EXPORT PNG</button>
+        <div class="exp-fx-row">
+          <span class="exp-fx-label">trail<span class="tip tip-left" id="exp-tip-trail"><span class="tip-icon">?</span><span class="tip-box">on</span></span></span>
+          <input type="checkbox" id="exp-r-trail"><input type="checkbox" id="exp-v-trail">
+        </div>
+        <div class="exp-fx-row">
+          <span class="exp-fx-label">field overlay<span class="tip tip-left" id="exp-tip-field"><span class="tip-icon">?</span><span class="tip-box">on</span></span></span>
+          <input type="checkbox" id="exp-r-field"><input type="checkbox" id="exp-v-field">
+        </div>
+        <div class="exp-fx-row">
+          <span class="exp-fx-label">bloom<span class="tip tip-left"><span class="tip-icon">?</span><span class="tip-box">Bloom is a raster self-composite technique (blurred copies screened over the original) — there's no vector equivalent, so it can never appear in an SVG export.</span></span></span>
+          <input type="checkbox" id="exp-r-bloom"><input type="checkbox" id="exp-v-bloom" disabled>
+        </div>
+        <div class="exp-fx-row">
+          <span class="exp-fx-label">capture bodies<span class="tip tip-left" id="exp-tip-bodies"><span class="tip-icon">?</span><span class="tip-box">on</span></span></span>
+          <input type="checkbox" id="exp-r-bodies"><input type="checkbox" id="exp-v-bodies">
+        </div>
+        <div class="exp-fx-row">
+          <span class="exp-fx-label">gradient</span>
+          <input type="checkbox" id="exp-r-gradient"><input type="checkbox" id="exp-v-gradient">
+        </div>
+        <div class="exp-fx-row">
+          <span class="exp-fx-label">pulse</span>
+          <input type="checkbox" id="exp-r-pulse"><input type="checkbox" id="exp-v-pulse">
+        </div>
+        <div class="exp-fx-row">
+          <span class="exp-fx-label">rainbow</span>
+          <input type="checkbox" id="exp-r-rainbow"><input type="checkbox" id="exp-v-rainbow">
+        </div>
+        <div class="exp-fx-row">
+          <span class="exp-fx-label">sparkle cursor<span class="tip tip-left"><span class="tip-icon">?</span><span class="tip-box">Cursor sparkles only exist during live interaction — there's no cursor in a static exported image, so there's nothing to place. Not a raster/vector distinction: this can never be exported.</span></span></span>
+          <input type="checkbox" id="exp-r-sparklecursor" disabled><input type="checkbox" id="exp-v-sparklecursor" disabled>
+        </div>
+        <div style="font-size:var(--fs-sm);color:var(--text3);padding:4px 0">glyphs off = flat colour dump (1px/cell in raster, squares-only in vector) — compact at any board size. gradient/pulse/rainbow read their colour, direction, and intensity from the live DISPLAY→EFFECTS sliders; these checkboxes only control whether each is included.</div>
+
+        <div class="section" style="margin:6px 0 0;border:1px solid var(--border)">
+          <div class="section-hdr open" data-target="io-size-r-controls" style="font-size:var(--fs-sm)"><span>RASTER SIZE</span><span class="arrow">▶</span></div>
+          <div class="sec-body" id="io-size-r-controls">
+            <label style="display:flex;align-items:center;gap:6px;font-size:var(--fs-lbl);color:var(--text2);padding:2px 0;cursor:pointer">
+              <input type="checkbox" id="io-size-r-enable"> override size (long edge — short edge follows the board's own aspect)
+            </label>
+            <div id="io-size-r-block" style="display:none;padding:4px 0 0 0">
+              <div class="row" style="gap:4px">
+                <button class="mini-btn size-unit-btn-r on" id="io-size-r-unit-in" style="flex:1">in</button>
+                <button class="mini-btn size-unit-btn-r" id="io-size-r-unit-cm" style="flex:1">cm</button>
+                <button class="mini-btn size-unit-btn-r" id="io-size-r-unit-px" style="flex:1">px</button>
+              </div>
+              <div class="row" style="gap:4px;padding-top:4px;flex-wrap:wrap">
+                <button class="mini-btn size-preset-print-r" data-preset="A5" style="flex:1">A5</button>
+                <button class="mini-btn size-preset-print-r" data-preset="A4" style="flex:1">A4</button>
+                <button class="mini-btn size-preset-print-r" data-preset="A3" style="flex:1">A3</button>
+                <button class="mini-btn size-preset-print-r" data-preset="Letter" style="flex:1">Letter</button>
+                <button class="mini-btn size-preset-print-r" data-preset="Legal" style="flex:1">Legal</button>
+              </div>
+              <div class="row" style="gap:4px;padding-top:2px;flex-wrap:wrap">
+                <button class="mini-btn size-preset-screen-r" data-preset="1:1" style="flex:1">1:1</button>
+                <button class="mini-btn size-preset-screen-r" data-preset="QVGA" style="flex:1">QVGA</button>
+                <button class="mini-btn size-preset-screen-r" data-preset="VGA" style="flex:1">VGA</button>
+                <button class="mini-btn size-preset-screen-r" data-preset="SVGA" style="flex:1">SVGA</button>
+                <button class="mini-btn size-preset-screen-r" data-preset="HD 1920" style="flex:1">HD</button>
+                <button class="mini-btn size-preset-screen-r" data-preset="QHD 2560" style="flex:1">QHD</button>
+                <button class="mini-btn size-preset-screen-r" data-preset="4K 3840" style="flex:1">4K</button>
+              </div>
+              <div class="row" style="gap:6px;align-items:center;padding-top:4px">
+                <label style="font-size:var(--fs-sm);color:var(--text3)">long edge</label>
+                <input type="number" id="io-size-r-width" value="8" min="0.1" step="0.1" style="width:56px">
+                <div id="io-size-r-dpi-row" class="row" style="gap:6px;align-items:center">
+                  <label style="font-size:var(--fs-sm);color:var(--text3)">dpi</label>
+                  <input type="number" id="io-size-r-dpi" value="300" min="10" step="10" style="width:56px">
+                </div>
+              </div>
+              <div id="io-size-r-info" style="font-size:var(--fs-sm);color:var(--text3);padding:4px 0"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section" style="margin:6px 0 0;border:1px solid var(--border)">
+          <div class="section-hdr open" data-target="io-size-v-controls" style="font-size:var(--fs-sm)"><span>VECTOR SIZE</span><span class="arrow">▶</span></div>
+          <div class="sec-body" id="io-size-v-controls">
+            <label style="display:flex;align-items:center;gap:6px;font-size:var(--fs-lbl);color:var(--text2);padding:2px 0;cursor:pointer">
+              <input type="checkbox" id="io-size-v-enable"> override size (long edge — short edge follows the board's own aspect)
+            </label>
+            <div id="io-size-v-block" style="display:none;padding:4px 0 0 0">
+              <div class="row" style="gap:4px">
+                <button class="mini-btn size-unit-btn-v on" id="io-size-v-unit-in" style="flex:1">in</button>
+                <button class="mini-btn size-unit-btn-v" id="io-size-v-unit-cm" style="flex:1">cm</button>
+                <button class="mini-btn size-unit-btn-v" id="io-size-v-unit-px" style="flex:1">px</button>
+              </div>
+              <div class="row" style="gap:4px;padding-top:4px;flex-wrap:wrap">
+                <button class="mini-btn size-preset-print-v" data-preset="A5" style="flex:1">A5</button>
+                <button class="mini-btn size-preset-print-v" data-preset="A4" style="flex:1">A4</button>
+                <button class="mini-btn size-preset-print-v" data-preset="A3" style="flex:1">A3</button>
+                <button class="mini-btn size-preset-print-v" data-preset="Letter" style="flex:1">Letter</button>
+                <button class="mini-btn size-preset-print-v" data-preset="Legal" style="flex:1">Legal</button>
+              </div>
+              <div class="row" style="gap:4px;padding-top:2px;flex-wrap:wrap">
+                <button class="mini-btn size-preset-screen-v" data-preset="1:1" style="flex:1">1:1</button>
+                <button class="mini-btn size-preset-screen-v" data-preset="QVGA" style="flex:1">QVGA</button>
+                <button class="mini-btn size-preset-screen-v" data-preset="VGA" style="flex:1">VGA</button>
+                <button class="mini-btn size-preset-screen-v" data-preset="SVGA" style="flex:1">SVGA</button>
+                <button class="mini-btn size-preset-screen-v" data-preset="HD 1920" style="flex:1">HD</button>
+                <button class="mini-btn size-preset-screen-v" data-preset="QHD 2560" style="flex:1">QHD</button>
+                <button class="mini-btn size-preset-screen-v" data-preset="4K 3840" style="flex:1">4K</button>
+              </div>
+              <div class="row" style="gap:6px;align-items:center;padding-top:4px">
+                <label style="font-size:var(--fs-sm);color:var(--text3)">long edge</label>
+                <input type="number" id="io-size-v-width" value="8" min="0.1" step="0.1" style="width:56px">
+                <div id="io-size-v-dpi-row" class="row" style="gap:6px;align-items:center">
+                  <label style="font-size:var(--fs-sm);color:var(--text3)">dpi</label>
+                  <input type="number" id="io-size-v-dpi" value="300" min="10" step="10" style="width:56px">
+                </div>
+              </div>
+              <div id="io-size-v-info" style="font-size:var(--fs-sm);color:var(--text3);padding:4px 0"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row" style="gap:4px;padding-top:6px">
+          <button class="mini-btn" id="io-render-raster-btn" style="flex:1">⬇ RENDER: RASTER</button>
+          <button class="mini-btn" id="io-render-vector-btn" style="flex:1">⬇ RENDER: VECTOR</button>
+        </div>
+        <button class="mini-btn" id="io-render-both-btn" style="width:100%;margin-top:4px">⬇ RENDER: BOTH</button>
         <div id="io-png-msg" style="font-size:var(--fs-sm);color:var(--accent2);padding:4px 0 0;min-height:1.2em"></div>
       </div>
     </div>
@@ -1368,6 +1492,37 @@ const GLYPH_SETS = {
 };
 let GLYPHS = GLYPH_SETS.chess;
 let _glyphSizeMult = 1; // controlled by the font-size slider in DISPLAY
+
+// Subsetted (per-glyph-set, woff2, ~2-9KB each) embeddable fonts for SVG export.
+// Built offline with fonttools from Noto Serif / Noto Sans Symbols(2) / Noto Sans SC,
+// each cut down to exactly the characters GLYPH_SETS uses for that set, so an SVG export
+// only ever carries the one glyph set actually on the board, not a full font (which for
+// the xiangqi/CJK set would otherwise be megabytes).
+const EXPORT_FONTS_B64 = {
+  chess: "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",
+  latin: "d09GMgABAAAAABlsABMAAAAAKsQAABkDAAID1wAAAAAAAAAAAAAAAAAAAAAAAAAAGhYbIBw2P0hWQVKCIQZgP1NUQVSBeCdEAGwvgTYRCAqNEIp6MLRGATYCJAM0CxwABCAFhmYHIBtGKJNNGX4Fzg3o9oBpnUYXRWma7BH/p+PGGNSAZs0yEpgEoWxuRE2nVUam68qDcwunrlxBRnh4N/zOD1Ok214l8OpBdAUPGeI5blOQiwk1PCKztTD0VUM72gqVvSwhJuvgX/yItVSflXbqwYMjNPZJLtTza+js+xdkdgBQVxdbUmXhgYUMuqjIEvoqghta5+i4vCr0BzT7RuWyVjc8nfovlwa6wL4YW+EU4MR0AL/JTM7hfr+J/tvtqe0jnsxCJtaBh9KpVEnC883t/WNY6lI1NEMVJlgsYRdy8v/mypk/EN4cAKaAGlChA7JVtffquvB8HdoqUcWgjji3zWWzMwkP2ZUTwWWqdOySVl17SFwVbp9a6KClZjUn+9F+/jtnYDH44JdIERhZ29oaXbs3v6AqhKwlTPKSm7s7/Q/A93ZorTZ7tFlMknr6BhFCE/HQb8FPRPw1cqVLdyWZeHonKapO/07RdEYSHepu6S91va0ewbPO6O7PnJyFv3dmwWm5onKqOheNS9CKIIHH4uJyXCDZc5dXwPik/zN3TrFKoUqhqAROyBHOIYTKRWkXrV10H2rI0B5odc7YXwIhqzozcS8GJTQsh+TISfecCngOYlIcMQgIBwz7gGQh31DSZVL/JUax+fDQqF8mDdlfq57nlVxnMLelXjCYDZSvs1t2IgF5mRT/QEU355Phxnngzj87AfgMIugYvSg/tGBGK6ya3Rj4+EIRyo6vpjMKAgVQcnjDXzzw8CH+tB6vb3pnbU/iZmmTyKFnG5sl8GyLyIEXm0RBMCAQEMbs+qEt/v0H8MWpfCUpqYEDn9/AH37WVhUDWqkylldbp7IpIEQgzol2Deu/oqj9ozEiQvC8GAxNaIgRWMH7WgPeDQbsqs0iG2NFQsuokLhghoGwmC4GqgCgbO47dPG47ScODPN/EWgz2gA7y5Lt7XI2JyYY3DteJFDO9h6Md89Be89ubEcB/WHoG9vDGOmK1esmqBvbednusFs96FnXiorZTFfHSjmVy2UCpxqm3bO2371UrTM2VmuF29fDxhqdbLTZrQfd1ErnNtzGGNtCOzNdZVNIVt4NLkV001MNI43wTowrv3tv39/3/PyXN/nL4RD/KJc4NaiWOpX/4l0pYIDoE+f9/9zyBgGY6dNXdqgoe8yWY0UP+ml60TiSrpkl8JehOSxI6/+Df8TLzUVNTEgQiqxZKZr5arwQIpcJ2fradLIpmURLxmxq09c2JJSOpqpKZHiHT82yZdF2tskVsoRvy1Wyhb9GauQ43WblOrnC+5EGIae7bLlJ3vCVHi0I+YgiyxFQSP3FI5tGdsbsNI+CWzT9zlZ/ZGW+ayC8dWmB4/uuwnN7bt7Y81f2HwKCEr1GRDCDBxZkD7ENoq20Btzt07sFzxC7CNbpQIh7so84kdaJdGIBkODSAX5gtAqRpoFAAcEXunT3kT7sRyuAhE4gcuX+XRD1brQC+gz6adf9NBR+xkF3EsZbtVZLe1p/TOxGu4L4N0JH6EyngmDd7jqmvK11V94O56Esghwha4E429kxwzfW7pnDYpciN+4Pko099+pq3IB3ITtkLhTgZbLDqPU72WHeJ6S+STugfhz6NXB4kYiHzJDpOsv3zGWTMtfoRvke6hwkDZiAu9JMqdVUuEc4ybKSTKj6Bj7VfCJQS+wOvbIDUyqPQVN5ZvIWr6MPlkL/1N4Ti05yrrEHap0FcqGzuDvKIIZgk2h8JtRS99eC/Q+NgdKd65T+fX08y6E45OrqpnbT1blAxb/XJk3e3bO6ay7WmIrVuISJmCzQZ0y2B2LCZ2z5FNKYIDwXdWXHxSVDmfhxWzpkgvfDj31HCNYjvv67R9yNT4loioZa74wxIId0PIq7BXLuOXe3fpu0s2VZJwmNJwZ0z1QKl/29cCGzOPI+2o+/eslkr1lYUxpU5SN3idN/P7khlDRHGVsYcVtDqqYx2Qgsvz2sZEfthsbqVsLSzsD1Q1PJW7Y/Hh3Y2pq9darHe3iiuxp28JIFuYRm/f3UdOtt+99othVy+XxrTrutr697sJZ8mF+XcmPG4GmIuY3ZuDGw+ctD508SBz6VJB8c2Phj/fti2FfhjRSilVWIOJoQ+ZI20Gv9WVsTll55owEfQoB3AsE7Tz55oKKFSB9m3P6+4fW7X1pWtPprI3Hv5MiYdzhR5RseT/G6HgJtvJ9ybo/WS0Yr35u7DxKsOb7hu8d0IdfhTlWtf+2QXoF24AMHejXRvuM5pFVPA+0AkY9hvZJ2Lwfj3Ey+jvnjrcJWXWgf+ldq4Wff+P6WmC0TMs/n5IyfXMPNA3qJV9DFvfQA4ZbUGv3jhr6Q2ipEqDPM7mFmnGrla677eJ3ZszZTeiw/xSYaoMP03j8IBF7llWV5qz8+Jdoqz+nEE/bJI2qt74x5j6R5nTe5TbW8rvSodwTIDegA2Fhf4SijF/Ne/qrJk1JK73CI9kyxRG3sBCErvk7L/USGn01HHnJXrrcpYch+b4C6DH2x59mKl5jH2OtwL/A/D718+LejLPLtleNYlM1X0mbeTT0BFw7KneNk427ZbjXOnfbNbNG+xcYul7kdpDrhkmOS0sRlZoNx74HEhhM0zbHPsog83uFilNE7DH2g3TVDbQLQOsJvRobN2tT7etBHiGFZBSWvSvS++NmdoJWNqJ9j1P1UX6K/tuENCgWXAU710NQlUG/mN74vgyCX4vSVQ/j+/kFPHfZ+8xf6D61xvP9ouaxVryFuTJeGB5lwg0pzPbKeY9yhz6fkPM6/xtt7xCLkT2K9kIX52Wx1a4+aMcpRko6NdVWVmgauWsr2LYC4Ix3hHrLJ2Ox+I780JBNAGGwmbXbZGV0T1JWWzckNiYeeTs6ppm+D+60KfwphFUCK1SaTWsBUjYmYQUwrbNFeL+szqC1HLhBKApmOzIlpajSM3pPVEExUzPiwkU8cUN5T5saQ8Hx7rvdG3KEmSxnUxS1kKCJuQKqbo/+gg2bs9cn9uHSLNuSrI4AkqBs5OcETq5rtShyttdwN0AR0a9KzJRxOQrhSV6k46m7ospIMbp2qSia7gs5RjwHSZltcUbBsLcICWQmJTfkEt7bMysKtZt6KuSKxxy6qYtDJsaUmbIAVV1x0xZWwAVbCykuFyKZjliVD4RP1/25f1uSTTE6OOeH5YY4pqcpO2G7uOlDBMVcijFx81z53t7n8HqiQdF/UKYpFuO/DovA3941aqVjIZhdJm4Mn5J32tmHiXTJEUEuHfhg03HVzWY2arEAnKY4ARjDgzKy2x581ea49CNrFQfuQ+WIUJ0kcTPUL9DQ6jcbi/CNWBXWv2Uw9qOCTDJpGFNvpoW3X8ePP3juh5RTVMCo4whns/6NGRVRKjmEEfU/u6cIzn8qSqJaCxWjW0HpFUlc3LxqOVYXj0WAslToRWmKBPVnD0x5L+RSoJXIMGwZo/BRTcN8lbLOjTwv5mubkJJI9bsj2fia9tNscidlD+h/vXzbKp2W97pwIA0afDNvC6xdir+UFyb9ukQ+l1mox7BeJLfTTyb/ulG9+8vPuHvhhvXU/T5Cq5UVsc5kFzkxX3PQQwUWSawvCSPNo1mMjwrxOki2iMjaMn25o2UZe1Czh+d3CT3bS5ZOlhsJ+eqk0zim/+ENDz2v6kN3X8JavCKqut18LbFVt1Dwr3NUqkP9UHnPNe+Tq12FhG5yTwI55OkicOXgDPf0Yg+MEsuv5XYzdrMKt11AAgswe5dxelaHrdsssJri2LDGG8O66a6egavhqYJpEHs4W7G2pecXNix7kkmPISayVm+qF6PLuUdzPxHWDzf8mSnoRviL0JdDXKDT08ywmz9WTTeWcNOtLS140g333szDzSPxDoYn7/DJXiGOVvFDEPp0vYJi/UMFeoXeLupTsuRa0JCLOemqQlys532KJROQ6b1xIUtEmP4w0OECqODpZiUK9jr1/EbELMDxI+rnanwPkVgZJnNGmv41aoTX/U5wlUTyl2+Xlrzj3tV9Xc4YIvQNz2+tbW+D5/4AsLAxivYJqouLTpzngdWxbeUoN6d3RNRchW7fSPfWwxapttwLL5htyu2jVOnh4FZVooIXBguzRXU5xoU9zZPWwtAuFuaQfBeAIXbPaKM4VVB4LltXNgTVQsNde6uSQTcTGNy7NCjS6ivVQ8EjGUPoquILNTcCEFmhBiRAoSOEqjKZrZpfZihViSpy925x7s81KgUXM2oOCinkV+RUUMOWmFGkP0gChTE/xenf7iZqxlBxGAYpowu8nu1ALebem+j+UchsrK7VCQkFJou9UVYFA70jztfWWfMjoSLpIKTnQLcz+4oefqgcKVgYLhEUYDGbhh+/8ZbRKsnxxRJ/7emfpnYfvVDn7W6jhGgIxOZie1H2Iw/vMT05iwaLqiL+DZeedU3l067tf8aPvOroZdKZGZ/BC/AaTUArZpgwhTUDIkcRpHIaXKZhh8AAkBcCUlXMvawd20LDsjVoZ/082TOouAzoexMUYjmJLR6fsRsBQG215AMEHGB3QDPlwh2D+u55S44gBEf9aVmXHvr3yuMftjQTcGvRCwPK1uPTAF419CfAU3jQVnKlwUQXgKhfDUclFcWEkRJkfZgMddIn7wxUo/DYzZikHl8RmmOYi1F7nztba65sKhfbuVuc6fB2i3z4TbOoZvCkEqhxqc07cprjdmx+6uEsieZdFna/aLc1u6NuoEDb3T/UjATOLHgozpAgd/ZwQCn9yyB7YPPMqWr6uNj2gV5C94t+a/I++9hzelGAmtwndCMg8QA4fehdScUQaYz4Hl2NlJ+aEGY0hkbQrhNyiA0492P6BgFQohWlMmSwaH6eWEMcIIe8VE5nhML5C5A4jAtbCKRYjy+Ds9kqyz1A4WJDXV6La2N08d7jMv4gOBG7LTd7FQMPvOAxYlV24AaBJmEQTBMbRJLkTxKmofMSWHtWHeRw6T9AfSLxMmyMmPKHkxeoeSsUoXHe25k14zpEUy1TSKLzdhj27ykZTJJ516nU7kZCRg2UXQalaedO/eIn1Xblm5cBgR3Nbmz+spbbbq0UlEYvPh/ApvFWBZB4U9AhqF1LKlJTR+ljvZ8+xURjJbJ0k8X/SQM4JqYUjXkNWKhIhrVCk1uXjM/9iVTxLpvAkZsNW87BOTdEQSD1YcJDVxIdOoMHYRRxIbWUhjezkpjoU7tvzq/CslCPLh1FqliLRx+ZWSC6xuCGELYOKdzXUfvg3R1GZoZOch0HBaU5zbjV3ta0b0rZU4uuX1ZDYz2MkjtXoLBTjxS9BnMJkxCgmVsgq3zyRYoike+Qr65kHA1fc3SYYTIrMc51o31SOmOtWGMramZPK6ANLGUKdAdUFGIDe7o7PqwTJSLshe5BHVFyvnA/BexLb2SzIAqWSLGy3KGWoYb1YGZRSRZzSyS7WMZ4XHmVyPYrCE3XkahrK8SoUOPqKT8AFtXrg0TmLz0glKNBkWpt1OxElLE0NHUO5TMpxTfgaXMT5jeaGusa6unxe9Kc3HW+b59lD6wRM+dP+CyNwgWPUaJhoQExStKIe2wUQuVUAhmnCei0D4o0x63/hh59GwVY8WtafY2gCs/Vvv8gaFonCzR+1L7weV24AuSJ3/a8vGEsB6DO87qjw0OhTVVwY4ESRZJY5+KIKelmUDOBeMdG5f6SXtYfduFeFfSz6ydjy9rEyU6b0f4SU/tWcUjobq+4fjuc1hlgQbCmMMWHgn4QJzT4GbhXf3Q9Kri5zWzDK7ZUBk9KFhzd34xxKEd+g7gAnAFN2hYPaAD5LYTlaGGA5LLvzIOgWQUoxB1bCecoZry1OC7zVJxOvrG9AluNBnuzifP6xZGFGeWTx7zpHjgUFtWX0fG7KKpI6u0ipVV0JNwu7ZIhEtQ7+X9/1Y1c2eC1nP7OvOE+yP71BNDU2J20aSR5qXhkfnxxoumwJLZNkzpyvt1CbqK8HLd5bfwpjHWqzxswvx47T8CvobkIk7iFTKxSJqLq+Ck6mtLBeo7YYJiHj/TDOCpDppRsmrzRdr5MuK4JVDgf6p3hChd2TN2lpdL5Sb3MVpzZa5Qq9nMw9kOHytbogYeLG7L0BW6hXc2+3Q+eFQ/vi4IgMf1dVy4cOIWzHmn7kcpfCUojQS4pruiIhhjrc+sinc0Tgb46jVdZyChUYvn/ryF/KlEHJHeicFncqwmFTD3iXhriojviHWJa5KEameeyBqZShFQjdSNNqvcZOz+xLjGrm6zQcWnMsmdByFmkgIiDPpTj+1+FC1awLzKkHelBNgE7UHOxWot6rVbCcK/Ty0LVYLhXLkslDsIxo21eiVPRvrbB9a50TBGDx7JSTbKFIiatM4bnymU7NLacoHRylLQhoMLuarKf8euxCx/36fpi75FG/NRYPEE6j0WD4ItqwNwPp9pDb7XIBDaEuxqDB/hRVWukXGFFVb2Uw1SJlzdRXLRidZLSHrufzAMQxEMIsUQoWvkK7L8hSv+6SlF9bvIdD/ymRxD6XRJfx5zBWR+VYJq9uiMIQRFyNeF91nlpJFP/rjGPB7Sm4WKtUpttaieu7FWxLtUzEUWJkqLXTWg/aIujLDTt2W7vo/GuVBJvjK5RND05CD86QnTO/cu9hnYMdo7QdYllvtm+o68UdauOCLtxJbfmy67A4IIagXSjI9xCD/GmYgQmYhGm7B8sHVSLYvAcVzDPBX44jcrzAKiEnlEiKIWlq5bHw6teo116FdvVi7saSCWpQnw7RXiDfNaoQaLwqoIzKHX7O2T2IRcDziORa9+Hg9OKTz3jOy9zbDuRsg7btk/F49DASXCwZydbV1VC1+WBHB/PCcrXffTCZcyT1ACmS2zVwlVSw3gyR94A62YSq7GqSZJa4rShGqN9RaUgmXErzbuQb1JOU+ZpSgQJMgWCClL3aGYBFrR587Epjx+kWD2ptZZ8+VPzW0DWtQPF/j0kx5r/SVB7/wloIDTRqaI37kZQ7JqJnEylF2iFzgtdV32PrM/nrg7wcacnkimDHJj2grh++kcz9Tx8nOzrxIXDu3SJaUCEL5MEAm0JkAnY6hndhTAVJSD4sVe3sbsJssRy23il+qjBEI+pTfU2e9zDfcVn6B+olppV3jHxd5sXpa/jEn2emyZydw2LHEHdU2/CUBU4ghkCX3VPg8LUj6a16587ibwjxXAxLYXYtoNMpDYrCyWQwWFwY4XTz0XSzjc2gog9zzMqrH8u9ufjK6ztou0lLBRom/y1sYyofMgu7yVTReoVgskKponOniw2HH25KxNngcVlnXDrZyjUIDvb/lOTUfGsK/Bc5thXTtuOYthfVvd6+iAMhZXw+kcnmBp7NZMKqmCK/SoXkoNSerbdVPwgUKaQSlSL2CX9LpGeSRgMBXAVQE8lxLUYDw5GbSaczqCoqp6N3B7V267pA/cyOz2nUxpRGozUEUsP/Pl63GLYatCoikUQXSJUoYFD+/i2ELFrCHCp0ljvxI/CK7SlK5Y1UcjFm/DhimFPRDc6nvFYBjhmPGmnO25ufFHm1EUMnaIrDZMzqwGUeojCuL6gq3BJuQnE7I11KhTBKBjuB9RlOPZJrwNr899PMmTa8Q8kTu6r2o3PhEKmSyAd5u3e05HfUjiwfbmp91nSDUpUYhVzrLi/C5DYVjGwHmJUi6xeGvZadLGES2YPS8BLeIOa16RZS0u/Y+A+pEiMq5xTMlaDLzboo65WM2OGFUdtQG4FaaIW2BRONRjCu1PFxblZLxZpU2V7xg6dYLI6z2JFskLno6Nzpim4SBKcbvsydykil1xv02obZqmQoKFfW9JcfBLaGASs9/LOJRKaxo9DeyninQqExmpBYqjXksnk8oNX6aGHwPzIlwHLbJIr3lcMRnW+YA9PttbFewIe4Ls/KqRYDDNZ7bhU25arI86W/99iC8dc4XpJFVvDVO9G44/iWPRWBbqLmXbryhHbU5TPuEA9DHA5HKHz1pWPmEQJjj5GQ9njX2kywPOeCXHz4Q4k2FTFrFx9OYn7SwymkdvtRSjGtNn5yNvr/lNMUoFgdrZmCruFJYZZ7Yj5OfomCXUzrzdiVGNcrVMt+nJfI6g2WBYSvuS++HlpXtaLBbwfR6D+Rom/3z2PyDT4v7KHsi/8rQv+jyUAgBoDg7ydWWEIB+neIHXhc3C3CCqhZO9HUsx1chvaV35G3dg9XBlGicpQ2IAqNMM3VfIHkdPC/4S+1LsIihry36v3SkkdO5BGAEQmLl0IBwonEKBBKKtYRTD7Wk64cG4g3jI0UW8QmQrmCzWS6eXvL5bCVXE+xjXDOsJ1sr7CDaL+xk/wQsYtgWbCb9CAYITZ12ENh+rGXUG3FPjKzH/tJz8M4QGzex0FS8yMOEa5LOEy4YYeLEGoMxg2M7M11AHozJl4a23l0om9nKJATS5xVqjPkQgMcS0Np0i2jTptAB+NkR8rO++7TLQB0CgHYUt8kdZcLwnEQ1gULAyrLze8dKR23XcOzlg1y14SdgHkojEfvmVGygGPJAMPSGAxgexf9xmwQnTtZMkBr7Zgj7YorEz3SlHbVl5zka/OP5wAAAA==",
+  cyrillic: "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",
+  xiangqi: "d09GMgABAAAAAAf8ABEAAAAADLwAAAefAAIBBgAAAAAAAAAAAAAAAAAAAAAAAAAAGYFkGyAcQgZgP1NUQVQuAHQRCAqQDIxUATYCJAMWCxYABCAFOAcgFyQYFhvFCVGUrNUOxMdibKuYPWAyEYXyUz/gtv5tjLhthHGYeFiNjVFEThujAy+ijcswvl5kApf9u0Dm2ELqBoX/ak3tb1iSOhcCFeOiY2yEAdwLAagCq0yFq6uq0YQOSKJwNZ5klakQtrav2jKDYaHVq++9G0AAARLqAACUwYAhU1CZ4JHetgYQt62yHsQrbaoFjyttKgWPL+1oAjEGAACggIETNz62MoG2OwmWbC1HMx8wtdqVpoAuiHkhDPg1qS2vKpvt+KsJO9/W3NgU0pxIqNCJCwEfZOUMMMzQnQkQaKBnMQAOjpwgASsswKCRmM3gUtkaJyEhtogtYovYos1EDgAuvykY7QWyEugA6GI0BwC0RS2kCIIR+TaUQAFMWHCjRJkkBRLSOgdHaC3mhQDYQkSYVAfQKeiLJicExoNCFsoBWI8LHAHtrq7pQMgcCrQ6gyIre3IKAGIAArRunIY5DEqKP5EHNMDSOjPSMzkFzCL3rj+Xli6/MThiNgO033Ns6cj48G87/tv2ehGnfXdrXFUhIADWWoGYzcBl42BtrAVAmwFoRQABrDVkAgvowB4jgAE41lQJjEMubQLHWRgpYFkQSzbOqmAYz6LNTMIYbIrJpaQDm4NZiSbJZWPgdVSDSad2EyjeZAG8fC5wKjOOG+vdvVP3m0x1Ogzv1l0ygCxz/Wb+o3SN7hQtVa0f49/EajuowmIU1enUhPv382fKqaNL4vfdvu2dMHTnTnn8cbcfmZe9z2iXOWQq5gInlw1kX5ohRLiCW4dpJKroCXSmhCa4wotrBKm26OSzRaRu7Wx022nA97mHjTb9/Yhed06XpWJu3qQgZd/983bU0IUH+fHHjd4x+02Zxf3KCMAz2UAWE4wAVVxHQBAtv/W7d/O/6iPthE1kMuyxI7KL2SiJEAie2z42j8DwPt1Gg59iw8GD5QQDL2IDieL1BDpzwG3npZwmdi0hliD1EtQhyNTSsxk4k8S6g+ZbxeRbw9KxbpdHunXn75+fnDB0AQi/OsW4wCDeewhffMTDHXN5/lGb4Ucmk7t6r10ndP1+/tUurz5leAg2mj7Kwsp0JB4dGurTpUnH6LQ47iTRbQIu0nTf1jwRq8I4YZM0cO6cF+c0/vDZiw65o0ajbu3evdYmoMEPEgtQp49g4HnmThcMWuECB2kgZ6yZmDVgbYBp67U73Xaawp9C+bLNkv75iXY8yi5RjhoFqs2mbO0+o51qyFSm3GQUZM4ymbJ0Gw0GcfLZR/UvmTQXOIV/zZmuVDSVPGWBcsHd7unK6eqZJcEpAakiuf+cvV9KJY2yTROUlW2SvMpTOrzacgtnK0uLcg4XatAtxAbOIov+tXK/2VXqpgSvxa9PeNTHlyjgWmDyjOTVkdNU0+z8lSrlA0sNz6Vx+miKOEtSNi8pqGvTjmIV17mibzMVnJWePk/r175sbsztrSdz4f1P1KkC1n+9OfEpcYOhPcmJ2ZLfpyn49i6J3Wq7bqEUTgX/p/pv8/mPio+CNYX/KnjDDqesz3LzMM7hghzsBPeg9Ua7i8bI4ZTKLdVa3CqewuJYa+wHQ1eP5LS3zl0YMIe/hDkvCjoVSpny/Q/WdPfjn1UXnH6pyaFoMU7XVpxTwfh4F844GK60Cikv7Uj/QQHQcbORysvZn75qgXjvFdOeAd/2a20ZVKRygZiKHhBvzdYmRB2O0kiX8s9JzmlWM6XMjxHKfiVxsV4aISWGpYlCehonxzG7Moui5py2q2NVef76J+eiaUpq/cyFJQOylMkFqUMa3srYGdnlLfZSaJzg8XmJt9beghAbf5vEh8MPhYdl72XMX/Rp+L/uRbxTC2LY5y1Vq1TnXo0pat/Il3goHtifsWNmeAkuF477Mjkc+E+gl+mRUb1cD92fFC23u5xBkSKueucJvUq/TaDuV6NruM89ZwZPFdcYi7qWbQsvCGp0b0uN2LfVa6X++basU3PuQMEMPuVbWRfcxCgXpliv+kdoeW4md9f07TxLa/cvF7hpLnUlLeWaf7JDKwIq3L+tXzFwe0FgT3RbfEFHg0wfM020ctqqvZum+fSEVccejPSM8bxeeMGzYNmcY3m1Ak/Du6xqm4nUuT0JS07pi8KKA2d9ml0Ukiu2vd0gbKiKnHgzcWg8mRuu2dBfF6eycu6QuDXqMnNxAe+g89/Dv2T0/3olaIXV2t5LHGlNeV6CfVc4U5MorKyStwkh/VuJXCIQzpbPtiunJw0lvb9XLah23FolqKqIG58/DncedMR1vOh+CS/kkuTSwUQtMFn0Gu4cK8XLO9+kBssgnbN7ufSnc5xfdEP/s/sY5Qumjapdy9PepAsrl0XqRoOp4cERUXLVpC8vrZpYUtyBJSOV/ZJEi+WCQr9UR9On8L7kZu0LbbD5nKTrguYr+m1RhHGysO1EMTcG/BuLRvsMAJ6Pu+0BAK9WH330/5//fCZamDwAYABqOAdb+P9rAOKYguB/3sZfXldFaJ9VCBZOSCiZQKgwbqpyHOkF0Yat6ysWnDIINonIcwDGCoIAOZ6VrlK1Tg1KtcmusHacqtGBBmAhmOcINo3wAPn1fzJpYtabS80DIDkAv59BHU9evIist1wAAA==",
+  numeric: "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",
+};
+// Vertical-centering offset per glyph set, in em units, for the SVG glyph
+// draws below. dominant-baseline="central" is NOT reliable enough across
+// real-world SVG renderers/print RIPs to use here — some ignore it and fall
+// back to the plain alphabetic baseline, which visibly shoves every piece
+// upward (glyph tops clip against the row above). Instead each value here
+// is measured directly from the actual glyph outlines of exactly the
+// characters that glyph set uses (combined bounding box, so every glyph in
+// a set sits on one shared, consistent center line rather than each
+// self-centering to its own extents) — see the font-subsetting step for how
+// these were derived. Applied as <text dy="{value}em">, which every SVG
+// renderer respects the same way. Sign convention, verified by pixel
+// measurement (not just eyeballing a render): font space is y-up (positive
+// = above baseline), SVG is y-down, so shifting the baseline DOWN by
+// +center/unitsPerEm em is what centers the glyph's ink on the target y —
+// dy is positive here, not negative.
+const EXPORT_FONTS_DY_EM = {
+  chess: 0.359, latin: 0.26, cyrillic: 0.242, xiangqi: 0.3805, numeric: 0.357,
+};
 
 
 // Colour palette: white=rose-magenta (hue~320), black=blue-violet (hue~230)
@@ -2762,10 +2917,10 @@ function showPieces(){return document.getElementById('viewmode').value!=='none';
 // Reads all the effect toggles/colours once per frame rather than once per
 // pixel — computeSquareColour() is called for every visible board cell every
 // frame, so DOM reads inside it were the single hottest cost in the renderer.
-function getSquareFxState(){
-  const gradOn = document.getElementById('fxGradient')?.checked;
-  const pulseOn = document.getElementById('fxPulse')?.checked;
-  const rainbowOn = document.getElementById('fxRainbow')?.checked;
+function getSquareFxState(overrides){
+  const gradOn = overrides?.gradOn ?? document.getElementById('fxGradient')?.checked;
+  const pulseOn = overrides?.pulseOn ?? document.getElementById('fxPulse')?.checked;
+  const rainbowOn = overrides?.rainbowOn ?? document.getElementById('fxRainbow')?.checked;
   const state = { gradOn, pulseOn, rainbowOn };
   if(gradOn){
     state.gradAmt = parseInt(document.getElementById('fxGradAmt')?.value||40)/100;
@@ -5772,33 +5927,86 @@ function wireSeedControls(inputId, msgId, loadBtnId, randomBtnId, copyBtnId, pas
 wireSeedControls('seedInput','seedMsg','seedLoadBtn','seedRandomBtn','seedCopyBtn','seedPasteBtn');
 document.getElementById('setup-refresh-btn')?.addEventListener('click', renderCurrentSetup);
 
-// ── PNG BOARD EXPORT ─────────────────────────────────────────────────────────
-let _pngMode = 'flat';
-document.getElementById('png-mode-flat')?.addEventListener('click',()=>{
-  _pngMode='flat';
-  document.getElementById('png-mode-flat').classList.add('on');
-  document.getElementById('png-mode-glyph').classList.remove('on');
-});
-document.getElementById('png-mode-glyph')?.addEventListener('click',()=>{
-  _pngMode='glyph';
-  document.getElementById('png-mode-glyph').classList.add('on');
-  document.getElementById('png-mode-flat').classList.remove('on');
-});
+// ── IMAGE EXPORT ─────────────────────────────────────────────────────────
 
-// Dumps the current board to a PNG. Flat mode is 1px/cell using the same
-// computeCellPixelColour() the live render uses, so it's a faithful,
-// always-compact snapshot regardless of board size. Glyph mode draws actual
-// piece glyphs at a readable size, capped so N/H don't push the output
-// canvas past typical browser size limits (~16k px on a side) on huge boards.
-// Composites the same overlay layers visible in the live view onto an
-// export canvas, in the same stacking order (bloom is a self-applied pass on
-// the base layer, then trail, then field, then capture-debris bodies).
-// cellPx is 1 for flat mode, or the glyph-mode cell size.
-function compositeEffectsOntoExport(exCtx, exCanvas, cellPx){
+// Dumps the current board to a PNG or SVG. Flat mode is 1px/cell (PNG) or
+// squares-only (SVG) using the same colour math the live render uses, so
+// it's a faithful, always-compact snapshot regardless of board size. Glyph
+// mode draws actual piece glyphs at a readable size (PNG capped so N/H
+// don't push the output canvas past typical browser size limits, ~16k px
+// on a side, on huge boards).
+//
+// trail/field/capture-body compositing is written ONCE below, as
+// compositeEffectsGeneric(), and driven through a small "sink" interface
+// (rect + rotatedGlyph) so the per-cell decay/colour math can't drift
+// between the PNG and SVG exporters — only how a coloured rect or a rotated
+// glyph actually gets drawn differs. Bloom has no vector equivalent (it's a
+// canvas self-composite trick), so it stays PNG-only and lives outside the
+// shared function, in compositeEffectsOntoExport() below.
+function compositeEffectsGeneric(sink, cellPx, opts={}){
+  const wantTrail = opts.trail ?? true;
+  const wantField = opts.field ?? true;
+  const wantBodies = opts.bodies ?? document.getElementById('fxBodies')?.checked;
+  // trail — paint/blur read directly from the board-space accumulator
+  // buffers (already per-cell, not screen-space, so no reprojection needed);
+  // sample redraws its ring buffer of past snapshots the same way renderTrail() does.
+  const trailMode = wantTrail ? document.getElementById('trailMode')?.value : 'none';
+  if(trailMode==='paint' || trailMode==='blur'){
+    const sz = cellPx*0.7; // raster-visibility floor lives in the sink (see canvasSink.rect), not here — a proportional size like this should never get clamped in SVG's abstract cellPx=1 units
+    for(let y=0;y<H;y++) for(let x=0;x<N;x++){
+      const bi=idx(x,y), a=trailBoardA[bi];
+      if(a<=0.003) continue;
+      sink.rect(x*cellPx+(cellPx-sz)/2, y*cellPx+(cellPx-sz)/2, sz, sz, trailBoardR[bi]|0, trailBoardG[bi]|0, trailBoardB[bi]|0, a);
+    }
+  } else if(trailMode==='sample' && trailSnapCount>0){
+    const nSnaps = trailSnapCount;
+    for(let si=0;si<nSnaps;si++){
+      const age=(si+1)/nSnaps;
+      const snap = trailSnaps[(trailSnapPos-nSnaps+si+TRAIL_SNAP_LEN)%TRAIL_SNAP_LEN];
+      if(!snap) continue;
+      const alpha=0.04+age*0.5, sz=cellPx*(0.2+age*0.6); // see note above — no absolute floor here, sinks handle their own medium's visibility floor
+      for(let j=0;j<snap.length;j+=2){
+        const bi=snap[j], p=snap[j+1];
+        const x=bi%N, y=(bi/N)|0;
+        const pc=PIECE_RGB[p]||[128,128,128];
+        sink.rect(x*cellPx+(cellPx-sz)/2, y*cellPx+(cellPx-sz)/2, sz, sz, pc[0], pc[1], pc[2], alpha);
+      }
+    }
+  }
+
+  // field overlay — same per-field-cell colour mapping as the live view, via
+  // the shared computeFieldColour(), just drawn at cellPx scale instead of cs.
+  if(wantField && fieldMode!=='none'){
+    const genCol=_fieldGenericRGB;
+    const ffcs=fieldScale*cellPx;
+    for(let fy=0;fy<FN;fy++) for(let fx=0;fx<FN;fx++){
+      const v=fieldData[fy*FN+fx];
+      const[r,g,b,a]=computeFieldColour(v,fieldMode,genCol,fieldOpacity);
+      if(a<=0) continue;
+      sink.rect(fx*ffcs,fy*ffcs,ffcs,ffcs, r,g,b, a/255);
+    }
+  }
+
+  // capture-debris bodies — board-space positions already, so no reprojection needed.
+  if(wantBodies && capturePositions.length){
+    const decayV = parseInt(document.getElementById('fxBodiesDecay')?.value ?? 20);
+    const DECAY_FRAMES = decayV >= 100 ? 1e9 : 100 + decayV*decayV*4;
+    for(const bd of capturePositions){
+      const alpha = decayV>=100 ? 0.55 : Math.max(0,0.55*(1-bd.age/DECAY_FRAMES));
+      if(alpha<=0) continue;
+      const pc=PIECE_RGB[bd.piece]||[128,128,128];
+      sink.rotatedGlyph(bd.x*cellPx+cellPx/2, bd.y*cellPx+cellPx/2, GLYPHS[bd.piece]||'†', cellPx, pc[0], pc[1], pc[2], alpha);
+    }
+  }
+}
+// Canvas sink + bloom pass — used by the PNG exporter.
+function compositeEffectsOntoExport(exCtx, exCanvas, cellPx, opts={}){
   // bloom — same self-blooming technique as renderBloom(), applied to the
   // export canvas instead of the live one. Radius is a fixed pixel count in
-  // both places, so it reads consistently regardless of cellPx.
-  if(document.getElementById('fxBloom')?.checked){
+  // both places, so it reads consistently regardless of cellPx. Raster-only:
+  // there's no vector equivalent of this self-composite trick, so SVG export
+  // skips it entirely rather than approximate it.
+  if(opts.bloom ?? document.getElementById('fxBloom')?.checked){
     const amt = parseInt(document.getElementById('fxBloomAmt')?.value || 20) / 100;
     exCtx.save();
     exCtx.globalCompositeOperation = 'screen';
@@ -5819,87 +6027,350 @@ function compositeEffectsOntoExport(exCtx, exCanvas, cellPx){
     exCtx.restore();
   }
 
-  // trail — paint/blur read directly from the board-space accumulator
-  // buffers (already per-cell, not screen-space, so no reprojection needed);
-  // sample redraws its ring buffer of past snapshots the same way renderTrail() does.
-  const trailMode = document.getElementById('trailMode')?.value;
-  if(trailMode==='paint' || trailMode==='blur'){
-    const sz = Math.max(1, cellPx*0.7);
-    for(let y=0;y<H;y++) for(let x=0;x<N;x++){
-      const bi=idx(x,y), a=trailBoardA[bi];
-      if(a<=0.003) continue;
-      exCtx.fillStyle = `rgba(${trailBoardR[bi]|0},${trailBoardG[bi]|0},${trailBoardB[bi]|0},${a})`;
-      exCtx.fillRect(x*cellPx+(cellPx-sz)/2, y*cellPx+(cellPx-sz)/2, sz, sz);
-    }
-  } else if(trailMode==='sample' && trailSnapCount>0){
-    const nSnaps = trailSnapCount;
-    for(let si=0;si<nSnaps;si++){
-      const age=(si+1)/nSnaps;
-      const snap = trailSnaps[(trailSnapPos-nSnaps+si+TRAIL_SNAP_LEN)%TRAIL_SNAP_LEN];
-      if(!snap) continue;
-      const alpha=0.04+age*0.5, sz=Math.max(1,cellPx*(0.2+age*0.6));
-      for(let j=0;j<snap.length;j+=2){
-        const bi=snap[j], p=snap[j+1];
-        const x=bi%N, y=(bi/N)|0;
-        const pc=PIECE_RGB[p]||[128,128,128];
-        exCtx.fillStyle=`rgba(${pc[0]},${pc[1]},${pc[2]},${alpha})`;
-        exCtx.fillRect(x*cellPx+(cellPx-sz)/2, y*cellPx+(cellPx-sz)/2, sz, sz);
-      }
-    }
-  }
-
-  // field overlay — same per-field-cell colour mapping as the live view, via
-  // the shared computeFieldColour(), just drawn at cellPx scale instead of cs.
-  if(fieldMode!=='none'){
-    const genCol=_fieldGenericRGB;
-    const ffcs=fieldScale*cellPx;
-    for(let fy=0;fy<FN;fy++) for(let fx=0;fx<FN;fx++){
-      const v=fieldData[fy*FN+fx];
-      const[r,g,b,a]=computeFieldColour(v,fieldMode,genCol,fieldOpacity);
-      if(a<=0) continue;
-      exCtx.fillStyle=`rgba(${r},${g},${b},${a/255})`;
-      exCtx.fillRect(fx*ffcs,fy*ffcs,ffcs,ffcs);
-    }
-  }
-
-  // capture-debris bodies — board-space positions already, so no reprojection needed.
-  if(document.getElementById('fxBodies')?.checked && capturePositions.length){
-    const decayV = parseInt(document.getElementById('fxBodiesDecay')?.value ?? 20);
-    const DECAY_FRAMES = decayV >= 100 ? 1e9 : 100 + decayV*decayV*4;
-    exCtx.save();
-    exCtx.textAlign='center'; exCtx.textBaseline='middle';
-    exCtx.font=`${Math.max(6,cellPx*0.7)}px serif`;
-    for(const bd of capturePositions){
-      const alpha = decayV>=100 ? 0.55 : Math.max(0,0.55*(1-bd.age/DECAY_FRAMES));
-      if(alpha<=0) continue;
-      const pc=PIECE_RGB[bd.piece]||[128,128,128];
-      exCtx.fillStyle=`rgba(${pc[0]},${pc[1]},${pc[2]},${alpha})`;
+  const canvasSink = {
+    rect(x,y,w,h,r,g,b,a){
+      // raster-only visibility floor: a sub-pixel rect is invisible on a
+      // canvas, unlike SVG where a fractional-unit rect still renders fine
+      // at any zoom — so this floor belongs here, not in the shared math.
+      exCtx.fillStyle = `rgba(${r},${g},${b},${a})`;
+      exCtx.fillRect(x,y,Math.max(1,w),Math.max(1,h));
+    },
+    rotatedGlyph(cx,cy,glyph,cellPx,r,g,b,alpha){
       exCtx.save();
-      exCtx.translate(bd.x*cellPx+cellPx/2, bd.y*cellPx+cellPx/2);
+      exCtx.textAlign='center'; exCtx.textBaseline='middle';
+      exCtx.font=`${Math.max(6,cellPx*0.7)}px serif`;
+      exCtx.fillStyle=`rgba(${r},${g},${b},${alpha})`;
+      exCtx.translate(cx,cy);
       exCtx.rotate(Math.PI);
-      exCtx.fillText(GLYPHS[bd.piece]||'†',0,0);
+      exCtx.fillText(glyph,0,0);
       exCtx.restore();
     }
-    exCtx.restore();
-  }
+  };
+  compositeEffectsGeneric(canvasSink, cellPx, opts);
+}
+// String-building SVG sink — used by the SVG exporter. Coordinates/sizes are
+// rounded to 3dp to keep the markup compact; glyph text goes through
+// _escXml() since GLYPHS values are static internal constants today, but if
+// that ever changes to include user-supplied text this is where it matters.
+function _svgFmt(n){ return (Math.round(n*1000)/1000).toString(); }
+function _escXml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function buildEffectsSVGSink(){
+  const parts = [];
+  return { parts,
+    rect(x,y,w,h,r,g,b,a){
+      parts.push(`<rect x="${_svgFmt(x)}" y="${_svgFmt(y)}" width="${_svgFmt(w)}" height="${_svgFmt(h)}" fill="rgb(${r},${g},${b})" fill-opacity="${_svgFmt(a)}"/>`);
+    },
+    rotatedGlyph(cx,cy,glyph,cellPx,r,g,b,alpha){
+      const fs = Math.max(cellPx*0.01, cellPx*0.7); // tiny proportional epsilon only, not a raster-pixel floor — see canvasSink for why those differ
+      const dyEm = EXPORT_FONTS_DY_EM[document.getElementById('glyphSet')?.value] ?? EXPORT_FONTS_DY_EM.chess;
+      parts.push(`<text x="${_svgFmt(cx)}" y="${_svgFmt(cy)}" dy="${dyEm}em" transform="rotate(180 ${_svgFmt(cx)} ${_svgFmt(cy)})" text-anchor="middle" font-family="ExportGlyphFont,serif" font-size="${_svgFmt(fs)}" fill="rgb(${r},${g},${b})" fill-opacity="${_svgFmt(alpha)}">${_escXml(glyph)}</text>`);
+    }
+  };
 }
 
-function exportBoardPNG(mode, includeEffects){
+// ---- PNG chunk writer -------------------------------------------------
+// canvas.toBlob() has no way to tag DPI or embed metadata itself, so both
+// get patched into the raw PNG bytes after the blob comes back: parse the
+// chunk stream, insert new chunks right after IHDR (always the first
+// chunk), reassemble. buildPngChunk() does the generic length+type+data+crc
+// framing once; patchPngMetadata() uses it for both a pHYs chunk (DPI, read
+// by print/image software) and a tEXt chunk (JSON settings snapshot, see
+// collectExportMetadata() below) in a single pass.
+const _CRC_TABLE=(()=>{
+  const t=new Uint32Array(256);
+  for(let n=0;n<256;n++){
+    let c=n;
+    for(let k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);
+    t[n]=c>>>0;
+  }
+  return t;
+})();
+function _crc32(bytes){
+  let c=0xFFFFFFFF;
+  for(let i=0;i<bytes.length;i++) c=_CRC_TABLE[(c^bytes[i])&0xFF]^(c>>>8);
+  return (c^0xFFFFFFFF)>>>0;
+}
+function buildPngChunk(type4, data){
+  const type=new Uint8Array([type4.charCodeAt(0),type4.charCodeAt(1),type4.charCodeAt(2),type4.charCodeAt(3)]);
+  const crcInput=new Uint8Array(4+data.length);
+  crcInput.set(type,0); crcInput.set(data,4);
+  const crc=_crc32(crcInput);
+  const chunk=new Uint8Array(4+4+data.length+4);
+  const cdv=new DataView(chunk.buffer);
+  cdv.setUint32(0,data.length,false);
+  chunk.set(type,4);
+  chunk.set(data,8);
+  cdv.setUint32(8+data.length,crc,false);
+  return chunk;
+}
+async function patchPngMetadata(blob, {dpi=null, metadata=null}={}){
+  const buf=new Uint8Array(await blob.arrayBuffer());
+  const dv=new DataView(buf.buffer);
+  const ihdrLen=dv.getUint32(8,false);
+  const insertAt=8+8+ihdrLen+4; // signature + (len+type) + IHDR data + crc
+  const chunks=[];
+  if(dpi){
+    const ppu=Math.round(dpi/0.0254); // pixels per metre
+    const data=new Uint8Array(9);
+    const ddv=new DataView(data.buffer);
+    ddv.setUint32(0,ppu,false); ddv.setUint32(4,ppu,false); data[8]=1;
+    chunks.push(buildPngChunk('pHYs',data));
+  }
+  if(metadata){
+    const bytes=new TextEncoder().encode('chess-gas-meta\u0000'+JSON.stringify(metadata));
+    chunks.push(buildPngChunk('tEXt',bytes));
+  }
+  if(!chunks.length) return blob;
+  const insertBytes=chunks.reduce((a,c)=>a+c.length,0);
+  const out=new Uint8Array(buf.length+insertBytes);
+  out.set(buf.subarray(0,insertAt),0);
+  let off=insertAt;
+  for(const c of chunks){ out.set(c,off); off+=c.length; }
+  out.set(buf.subarray(insertAt),off);
+  return new Blob([out],{type:'image/png'});
+}
+
+// ---- provenance metadata, embedded in every export (PNG tEXt / SVG
+// <metadata>) and in an export-run's manifest.json — recorded generously
+// since it's cheap to gather and there's no round-trip/import feature
+// depending on its exact shape, just a permanent record of how a given
+// image was produced. Pulls from the same DOM ids the sim loop itself
+// reads, so it can't drift from what actually ran.
+function collectExportMetadata(exportOpts){
+  const v=id=>document.getElementById(id)?.value;
+  const c=id=>document.getElementById(id)?.checked;
+  return {
+    schema: 2,
+    app: 'chess-gas',
+    timestamp: new Date().toISOString(),
+    tick: stepCount,
+    board: {N, H},
+    glyphSet: v('glyphSet'),
+    exportOpts, // what this specific export actually included — may differ from the live effect toggles below
+    sim: {
+      topoMode: v('topoMode'), potentialMode: v('potentialMode'), potPolarity: v('potPolarity'),
+      collisionMode: v('collisionMode'), inelasticP: v('inelasticP'), promoMode: v('promoMode'),
+      speedLimit: v('speedLimit'), mpf: v('mpf'),
+    },
+    liveEffects: {
+      trailMode: v('trailMode'), fieldMode: v('fieldMode'),
+      bloom: c('fxBloom'), bloomAmt: v('fxBloomAmt'),
+      bodies: c('fxBodies'), bodiesDecay: v('fxBodiesDecay'),
+      gradient: c('fxGradient'), pulse: c('fxPulse'), rainbow: c('fxRainbow'),
+    },
+  };
+}
+
+// ---- print/screen size state (physical size × DPI, or a raw pixel
+// target for screen presets), shared by the live UI and both exporters so
+// they can never disagree. Anchored on the board's LONG edge rather than
+// always N — boards range from 8×2048 to the transpose of that, so a
+// preset has to size whichever axis is actually longest, not assume N is
+// the "width". The short edge always follows from the board's own N:H.
+// Raster and vector each get their own independent size panel (per user
+// request — a print-shop raster and a screen-sized vector from the same
+// board state is a real workflow), so everything here is keyed by panel
+// ('r' or 'v') rather than a single shared unit/state pair.
+const SIZE_DIM_WARN=16000, SIZE_DIM_BLOCK=30000;
+const _exportSizeUnit={r:'in', v:'in'}; // 'in' | 'cm' | 'px' (px = screen presets: value is a direct long-edge pixel target, no DPI)
+function computeSizeExportDims(panel){
+  const widthVal=parseFloat(document.getElementById(`io-size-${panel}-width`)?.value)||0;
+  const unit=_exportSizeUnit[panel];
+  const longEdge=Math.max(N,H), shortEdge=Math.min(N,H);
+  let cellPx, dpi, effDpi, longIn=null;
+  if(unit==='px'){
+    cellPx=Math.max(1,Math.round(widthVal/longEdge));
+    dpi=96; effDpi=96; // nominal tag only — screen output has no physical size
+  } else {
+    dpi=Math.max(1,parseInt(document.getElementById(`io-size-${panel}-dpi`)?.value)||300);
+    longIn=unit==='cm'?widthVal/2.54:widthVal;
+    cellPx=Math.max(1,Math.round(longIn*dpi/longEdge));
+    effDpi=longIn>0?((cellPx*longEdge)/longIn):dpi;
+  }
+  const pxW=N*cellPx, pxH=H*cellPx;
+  // widthIn/heightIn (inches) drive the SVG's physical width/height attrs and
+  // the info line; in px mode there's no physical size, so these are null.
+  const widthIn = longIn===null ? null : (N>=H ? longIn : longIn*shortEdge/longEdge);
+  const heightIn = longIn===null ? null : (H>=N ? longIn : longIn*shortEdge/longEdge);
+  const blocked=pxW>SIZE_DIM_BLOCK||pxH>SIZE_DIM_BLOCK;
+  const warn=!blocked&&(pxW>SIZE_DIM_WARN||pxH>SIZE_DIM_WARN);
+  return {widthIn,heightIn,dpi,effDpi,cellPx,pxW,pxH,blocked,warn};
+}
+function fmtLen(panel, inches){
+  if(_exportSizeUnit[panel]==='px' || inches===null) return null;
+  const unit=_exportSizeUnit[panel];
+  const v=unit==='cm'?inches*2.54:inches;
+  return `${v.toFixed(2)}${unit}`;
+}
+const SIZE_PRESETS_PRINT=[ // [label, long-edge inches, default dpi]
+  ['A5',8.27,300],['A4',11.69,300],['A3',16.54,300],['Letter',11,300],['Legal',14,300],
+];
+const SIZE_PRESETS_SCREEN=[ // [label, long-edge px — '1:1' is computed live since it depends on the current board size]
+  ['1:1', ()=>Math.max(N,H)], ['QVGA',320], ['VGA',640], ['SVGA',800],
+  ['HD 1920',1920],['QHD 2560',2560],['4K 3840',3840],
+];
+function applySizePreset(panel, unit, widthVal, dpi){
+  document.getElementById(`io-size-${panel}-enable`).checked=true;
+  document.getElementById(`io-size-${panel}-block`).style.display='';
+  _exportSizeUnit[panel]=unit;
+  document.getElementById(`io-size-${panel}-width`).value = unit==='px' ? widthVal : widthVal.toFixed(2);
+  if(dpi) document.getElementById(`io-size-${panel}-dpi`).value=dpi;
+  document.querySelectorAll(`.size-unit-btn-${panel}`).forEach(b=>b.classList.remove('on'));
+  document.getElementById(`io-size-${panel}-unit-${unit}`)?.classList.add('on');
+  const dpiRow=document.getElementById(`io-size-${panel}-dpi-row`);
+  if(dpiRow) dpiRow.style.display = unit==='px' ? 'none' : '';
+  updateSizeInfo(panel);
+}
+function updateSizeInfo(panel){
+  const info=document.getElementById(`io-size-${panel}-info`);
+  if(!info) return;
+  const s=computeSizeExportDims(panel);
+  let txt = s.heightIn===null
+    ? `→ ${s.pxW}×${s.pxH}px (long edge target: ${document.getElementById(`io-size-${panel}-width`).value}px)`
+    : `→ ${fmtLen(panel,s.widthIn)}×${fmtLen(panel,s.heightIn)} · ${s.pxW}×${s.pxH}px @ ${s.effDpi.toFixed(0)}dpi`;
+  if(s.blocked) txt+=' — too large, reduce size/DPI';
+  else if(s.warn) txt+=' — very large, may be slow or fail in some browsers';
+  info.textContent=txt;
+  info.style.color=s.blocked?'#e05c5c':(s.warn?'#e0a95c':'var(--text3)');
+}
+// Wires up one size panel's listeners — called once per panel ('r','v')
+// rather than writing each listener twice, since the two panels are
+// identical in behaviour and only differ by which DOM ids they touch.
+function initSizePanel(panel){
+  document.getElementById(`io-size-${panel}-enable`)?.addEventListener('change',e=>{
+    const ctrl=document.getElementById(`io-size-${panel}-block`);
+    if(ctrl) ctrl.style.display=e.target.checked?'':'none';
+    updateSizeInfo(panel);
+  });
+  document.getElementById(`io-size-${panel}-width`)?.addEventListener('input',()=>updateSizeInfo(panel));
+  document.getElementById(`io-size-${panel}-dpi`)?.addEventListener('input',()=>updateSizeInfo(panel));
+  const setUnit=(u)=>{
+    if(_exportSizeUnit[panel]===u) return;
+    const wEl=document.getElementById(`io-size-${panel}-width`);
+    const cur=parseFloat(wEl.value)||0, prev=_exportSizeUnit[panel];
+    if(u==='px' || prev==='px') wEl.value = u==='px' ? Math.round(Math.max(N,H)*4) : (8).toFixed(2); // no sane physical<->pixel conversion, just a fresh sane default
+    else wEl.value = (prev==='cm'&&u==='in' ? cur/2.54 : prev==='in'&&u==='cm' ? cur*2.54 : cur).toFixed(2);
+    _exportSizeUnit[panel]=u;
+    document.querySelectorAll(`.size-unit-btn-${panel}`).forEach(b=>b.classList.remove('on'));
+    document.getElementById(`io-size-${panel}-unit-${u}`).classList.add('on');
+    const dpiRow=document.getElementById(`io-size-${panel}-dpi-row`);
+    if(dpiRow) dpiRow.style.display = u==='px' ? 'none' : '';
+    updateSizeInfo(panel);
+  };
+  ['in','cm','px'].forEach(u=>document.getElementById(`io-size-${panel}-unit-${u}`)?.addEventListener('click',()=>setUnit(u)));
+  document.querySelectorAll(`.size-preset-print-${panel}`).forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const [,longIn,dpi]=SIZE_PRESETS_PRINT.find(p=>p[0]===btn.dataset.preset);
+      applySizePreset(panel,'in',longIn,dpi);
+    });
+  });
+  document.querySelectorAll(`.size-preset-screen-${panel}`).forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const preset=SIZE_PRESETS_SCREEN.find(p=>p[0]===btn.dataset.preset);
+      const px = typeof preset[1]==='function' ? preset[1]() : preset[1];
+      applySizePreset(panel,'px',px,null);
+    });
+  });
+  updateSizeInfo(panel);
+}
+initSizePanel('r');
+initSizePanel('v');
+
+// Reads the export panel's checkbox matrix for one column ('r' raster or
+// 'v' vector) into a plain opts object — the single source of truth both
+// the render functions and the availability-greying logic work from.
+function collectExportOpts(panel){
+  const c=id=>document.getElementById(id)?.checked;
+  return {
+    glyphs: c(`exp-${panel}-glyphs`),
+    trail: c(`exp-${panel}-trail`) && document.getElementById('trailMode')?.value!=='none',
+    field: c(`exp-${panel}-field`) && fieldMode!=='none',
+    bloom: panel==='v' ? false : c(`exp-${panel}-bloom`), // structurally impossible in vector regardless of checkbox state
+    bodies: c(`exp-${panel}-bodies`) && capturePositions.length>0,
+    gradient: c(`exp-${panel}-gradient`),
+    pulse: c(`exp-${panel}-pulse`),
+    rainbow: c(`exp-${panel}-rainbow`),
+  };
+}
+
+// Trail/field/bodies rows get greyed out — with an explanation of WHY,
+// distinct from the permanently-structural greys (bloom in vector, sparkle
+// cursor everywhere) — when there's currently no data for them to show.
+// This is different from "off": the row reflects real data availability,
+// not a permanent limitation, so it re-enables the moment the underlying
+// live setting changes or a capture happens.
+function updateExportAvailability(){
+  const trailOn = document.getElementById('trailMode')?.value!=='none';
+  const fieldOn = fieldMode!=='none';
+  const bodiesOn = capturePositions.length>0;
+  const set=(key,on,offMsg)=>{
+    ['r','v'].forEach(panel=>{
+      const el=document.getElementById(`exp-${panel}-${key}`);
+      if(el) el.disabled = !on;
+    });
+    const tip=document.getElementById(`exp-tip-${key}`)?.querySelector('.tip-box');
+    if(tip) tip.textContent = on
+      ? 'Included when checked.'
+      : offMsg;
+  };
+  set('trail', trailOn, 'Trail is currently off in DISPLAY → EFFECTS, so there\'s no trail data to include — turn it on there first.');
+  set('field', fieldOn, 'Field overlay is currently off in DISPLAY → FIELDS, so there\'s no field data to include — turn it on there first.');
+  set('bodies', bodiesOn, 'No captures have happened yet this run — there\'s nothing to show until a piece is taken.');
+}
+document.getElementById('trailMode')?.addEventListener('change', updateExportAvailability);
+document.getElementById('fieldMode')?.addEventListener('change', updateExportAvailability);
+// capturePositions/trailMode/fieldMode can all change while the export
+// panel sits collapsed, so re-check on open rather than only on load.
+document.querySelectorAll('.section-hdr[data-target="io-png-body"]').forEach(hdr=>{
+  hdr.addEventListener('click', updateExportAvailability);
+});
+
+// Sensible starting point: mirror what's currently visible live, rather
+// than opening every export panel unchecked and making the person re-toggle
+// everything they can already see on screen. Still fully independent from
+// that point on — this only sets the initial state, once.
+function initExportCheckboxDefaults(){
+  const liveTrail = document.getElementById('trailMode')?.value!=='none';
+  const liveField = fieldMode!=='none';
+  const liveBloom = document.getElementById('fxBloom')?.checked;
+  const liveBodies = document.getElementById('fxBodies')?.checked;
+  const liveGrad = document.getElementById('fxGradient')?.checked;
+  const livePulse = document.getElementById('fxPulse')?.checked;
+  const liveRainbow = document.getElementById('fxRainbow')?.checked;
+  ['r','v'].forEach(panel=>{
+    const set=(key,val)=>{ const el=document.getElementById(`exp-${panel}-${key}`); if(el) el.checked=val; };
+    set('trail', liveTrail); set('field', liveField); set('bodies', liveBodies);
+    set('gradient', liveGrad); set('pulse', livePulse); set('rainbow', liveRainbow);
+  });
+  document.getElementById('exp-r-bloom').checked = liveBloom; // vector bloom stays permanently unchecked+disabled, set via the HTML disabled attribute
+  updateExportAvailability();
+}
+initExportCheckboxDefaults();
+
+function exportBoardPNG(opts){
   const msg = document.getElementById('io-png-msg');
   if(msg) msg.innerHTML = '<span class="png-spinner"></span> rendering…';
   // The actual drawing below is synchronous and can take a real moment on a
   // huge board - deferring it a tick lets the browser actually paint the
   // spinner first, instead of freezing on "rendering..." with no visible
   // spinner because the main thread never got a chance to repaint.
-  setTimeout(()=>_doExportBoardPNG(mode, includeEffects), 30);
+  setTimeout(()=>_doExportBoardPNG(opts), 30);
 }
-function _doExportBoardPNG(mode, includeEffects){
+function _doExportBoardPNG(opts){
   const msg = document.getElementById('io-png-msg');
-  const _fx = getSquareFxState();
-  const sp = showPieces();
+  const mode = opts.glyphs ? 'glyph' : 'flat';
+  const _fx = getSquareFxState({gradOn:opts.gradient, pulseOn:opts.pulse, rainbowOn:opts.rainbow});
   const exCanvas = document.createElement('canvas');
   const exCtx = exCanvas.getContext('2d');
   let cellPx;
+  // print-size mode only applies to glyph-mode renders — flat mode is a
+  // 1px/cell data dump with no meaningful "physical size" to speak of.
+  const sizeState = (mode!=='flat' && document.getElementById('io-size-r-enable')?.checked)
+    ? computeSizeExportDims('r') : null;
+  if(sizeState && sizeState.blocked){
+    if(msg) msg.textContent = `${sizeState.pxW}×${sizeState.pxH}px is too large to export — reduce the print size or DPI.`;
+    return;
+  }
 
   if(mode==='flat'){
     cellPx=1;
@@ -5907,13 +6378,21 @@ function _doExportBoardPNG(mode, includeEffects){
     const img=exCtx.createImageData(N,H);
     const d=img.data;
     for(let y=0;y<H;y++) for(let x=0;x<N;x++){
-      const[r,g,b]=computeCellPixelColour(x,y,_fx,sp);
+      // opts.glyphs (this function's "sp" arg) does double duty in flat mode:
+      // it's whether an occupied cell's pixel gets tinted by its piece's
+      // colour at all — flat mode's own equivalent of "show pieces", since
+      // there's no room to draw an actual glyph shape at 1px/cell.
+      const[r,g,b]=computeCellPixelColour(x,y,_fx,opts.glyphs);
       const o=(y*N+x)*4; d[o]=r;d[o+1]=g;d[o+2]=b;d[o+3]=255;
     }
     exCtx.putImageData(img,0,0);
   } else {
-    const MAX_DIM=16000, IDEAL_CELL_PX=24;
-    cellPx=Math.max(4,Math.min(IDEAL_CELL_PX,Math.floor(MAX_DIM/Math.max(N,H))));
+    if(sizeState){
+      cellPx=sizeState.cellPx;
+    } else {
+      const MAX_DIM=16000, IDEAL_CELL_PX=24;
+      cellPx=Math.max(4,Math.min(IDEAL_CELL_PX,Math.floor(MAX_DIM/Math.max(N,H))));
+    }
     exCanvas.width=N*cellPx; exCanvas.height=H*cellPx;
     // squares (checkerboard + potential/gradient/pulse effects + capture
     // flash, no piece blend) — mirrors the live gl-branch of render(),
@@ -5932,10 +6411,10 @@ function _doExportBoardPNG(mode, includeEffects){
     // in here, before glyphs are drawn — matching the live view, where these
     // are separate un-bloomed canvas layers stacked under the always-crisp
     // glyph canvas (see renderGlyphs()'s comment).
-    if(includeEffects) compositeEffectsOntoExport(exCtx, exCanvas, cellPx);
+    compositeEffectsOntoExport(exCtx, exCanvas, cellPx, opts);
     // glyphs on top, always last and never blurred by bloom, mirroring
     // renderGlyphs()'s styling and stacking position
-    if(sp){
+    if(opts.glyphs){
       exCtx.textAlign='center'; exCtx.textBaseline='middle';
       exCtx.font=`${Math.max(8,cellPx*0.78)}px serif`;
       for(let y=0;y<H;y++) for(let x=0;x<N;x++){
@@ -5951,23 +6430,143 @@ function _doExportBoardPNG(mode, includeEffects){
     }
   }
 
-  if(mode==='flat' && includeEffects) compositeEffectsOntoExport(exCtx, exCanvas, cellPx);
+  if(mode==='flat') compositeEffectsOntoExport(exCtx, exCanvas, cellPx, opts);
 
-  exCanvas.toBlob(blob=>{
+  exCanvas.toBlob(async blob=>{
     if(!blob){ if(msg) msg.textContent='export failed — image may be too large for this browser.'; return; }
-    const url=URL.createObjectURL(blob);
+    const finalBlob = await patchPngMetadata(blob, {dpi: sizeState?sizeState.effDpi:null, metadata: collectExportMetadata(opts)});
+    const url=URL.createObjectURL(finalBlob);
     const a=document.createElement('a');
     a.href=url; a.download=`chess-gas-${N}x${H}-${mode}-step${stepCount}.png`;
     a.click();
     URL.revokeObjectURL(url);
-    if(msg) msg.textContent = `exported ${exCanvas.width}×${exCanvas.height}px.`;
+    if(msg) msg.textContent = sizeState
+      ? `exported ${exCanvas.width}×${exCanvas.height}px @ ${sizeState.effDpi.toFixed(0)}dpi (${fmtLen('r',sizeState.widthIn)}×${fmtLen('r',sizeState.heightIn)}).`
+      : `exported ${exCanvas.width}×${exCanvas.height}px.`;
   });
 }
-document.getElementById('io-png-export-btn')?.addEventListener('click',()=>{
-  // A render is a snapshot - pause first so the sim can't keep stepping (and
-  // trail/flash state can't keep changing) during the deferred draw below.
-  if(running) togglePlay();
-  exportBoardPNG(_pngMode, document.getElementById('io-png-effects')?.checked);
+// A render is a snapshot - pause first so the sim can't keep stepping (and
+// trail/flash state can't keep changing) during the deferred draw an export
+// does. Shared by every render button.
+function pauseForExport(){ if(running) togglePlay(); }
+document.getElementById('io-render-raster-btn')?.addEventListener('click',()=>{
+  pauseForExport();
+  exportBoardPNG(collectExportOpts('r'));
+});
+
+// Dumps the current board to a true vector SVG: one <rect> per board cell
+// (and per trail/field cell, and one <text> per capture body / piece glyph)
+// instead of a pixel grid, so it scales losslessly to any print size. Shares
+// computeSquareColour/computeFieldColour and compositeEffectsGeneric with
+// the PNG exporter, so the colour and decay math can't diverge between the
+// two — only bloom is PNG-only (see compositeEffectsOntoExport's comment).
+// Cell size is a plain "1 unit" in the SVG's own coordinate space; physical
+// print size (if the print-size UI is enabled) is applied as a width/height
+// attribute on the root <svg>, not by scaling the coordinates, so the
+// viewBox math below stays identical whether or not print-size is on.
+function exportBoardSVG(opts){
+  const msg = document.getElementById('io-png-msg');
+  if(msg) msg.innerHTML = '<span class="png-spinner"></span> rendering…';
+  setTimeout(()=>_doExportBoardSVG(opts), 30);
+}
+function _doExportBoardSVG(opts){
+  const msg = document.getElementById('io-png-msg');
+  const mode = opts.glyphs ? 'glyph' : 'flat';
+  const _fx = getSquareFxState({gradOn:opts.gradient, pulseOn:opts.pulse, rainbowOn:opts.rainbow});
+  const drawGlyphs = opts.glyphs;
+  const CELL = 1;
+  const sizeState = document.getElementById('io-size-v-enable')?.checked ? computeSizeExportDims('v') : null;
+
+  const parts = [];
+  parts.push('<?xml version="1.0" encoding="UTF-8"?>');
+  // px-mode sizing has no physical size (widthIn/heightIn are null there —
+  // see computeSizeExportDims), so the width/height attrs need to be plain
+  // CSS pixels in that case, not fmtLen()'s physical-unit string (which
+  // would literally emit width="null").
+  const sizeAttr = !sizeState ? ''
+    : sizeState.widthIn===null ? ` width="${sizeState.pxW}" height="${sizeState.pxH}"`
+    : ` width="${fmtLen('v',sizeState.widthIn)}" height="${fmtLen('v',sizeState.heightIn)}"`;
+  parts.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${N} ${H}"${sizeAttr}>`);
+
+  // embedded font — only the currently active glyph set (see EXPORT_FONTS_B64
+  // in the GLYPH_SETS block), so a latin-set export doesn't carry the CJK font.
+  const setName = document.getElementById('glyphSet')?.value || 'chess';
+  if(drawGlyphs){
+    const fontB64 = EXPORT_FONTS_B64[setName] || EXPORT_FONTS_B64.chess;
+    parts.push(`<defs><style>@font-face{font-family:'ExportGlyphFont';src:url(data:font/woff2;base64,${fontB64}) format('woff2');}</style></defs>`);
+  }
+  parts.push(`<metadata>${_escXml(JSON.stringify(collectExportMetadata(opts)))}</metadata>`);
+
+  // squares — same colour source as the PNG exporter's glyph-mode branch
+  // (computeSquareColour + flash tint + potential blackout), at CELL=1 scale.
+  for(let y=0;y<H;y++) for(let x=0;x<N;x++){
+    const bi=idx(x,y), pv=potentialMap[bi];
+    const sq=(x+y)%2===0?SQ_LIGHT:SQ_DARK;
+    if(pv>=1.0){ parts.push(`<rect x="${x*CELL}" y="${y*CELL}" width="${CELL}" height="${CELL}" fill="rgb(14,12,18)"/>`); continue; }
+    const[sqR,sqG,sqB]=computeSquareColour(x,y,pv,sq,_fx);
+    const fl=flashMap[bi];
+    const r = fl>0 ? (sqR+(FLASH_RGB[0]-sqR)*fl)|0 : sqR;
+    const g = fl>0 ? (sqG+(FLASH_RGB[1]-sqG)*fl)|0 : sqG;
+    const b = fl>0 ? (sqB+(FLASH_RGB[2]-sqB)*fl)|0 : sqB;
+    parts.push(`<rect x="${x*CELL}" y="${y*CELL}" width="${CELL}" height="${CELL}" fill="rgb(${r},${g},${b})"/>`);
+  }
+
+  // trail / field / capture bodies — no bloom (raster-only, see comment above).
+  if(opts.trail || opts.field || opts.bodies){
+    const sink = buildEffectsSVGSink();
+    compositeEffectsGeneric(sink, CELL, opts);
+    parts.push(...sink.parts);
+  }
+
+  // glyphs, on top — stroke-then-fill in a single <text> via paint-order,
+  // mirroring the PNG exporter's strokeText()-then-fillText() pass.
+  //
+  // Stroke width here is NOT proportioned like the raster path's — raster's
+  // 0.07*fontsize ratio was calibrated against whatever system serif font
+  // the browser substitutes for chess Unicode glyphs, which tends to have
+  // much thicker native glyph strokes. Our embedded Noto Sans Symbols2
+  // subset draws these glyphs with far thinner paths, so the same ratio
+  // was overwhelming the fill almost completely — measured empirically
+  // (pixel-counting a rendered sample): the old 0.07 value produced 100%
+  // stroke / 0% visible fill pixels. 0.008 was the value that actually
+  // produced a fill-dominant result (~70-75% fill / 25-30% stroke),
+  // matching what a "thin outline around a filled piece" should look like.
+  // If the embedded font ever changes, re-measure rather than assuming
+  // this ratio still holds — it's tuned to this specific font's glyph
+  // weight, not a universal proportion.
+  if(drawGlyphs){
+    const fs = Math.max(0.2, CELL*0.78);
+    const sw = Math.max(0.002, CELL*0.008);
+    const dyEm = EXPORT_FONTS_DY_EM[setName] ?? EXPORT_FONTS_DY_EM.chess;
+    for(let y=0;y<H;y++) for(let x=0;x<N;x++){
+      const p=board[idx(x,y)]; if(!p) continue;
+      const hsl=PIECE_HSL[p];
+      const cx2=x*CELL+CELL/2, cy2=y*CELL+CELL/2;
+      const strokeCol = isWhite(p) ? `hsl(${hsl[0]},${hsl[1]}%,15%)` : `hsl(${hsl[0]},${hsl[1]}%,85%)`;
+      const fillCol = `hsl(${hsl[0]},${hsl[1]}%,${hsl[2]}%)`;
+      parts.push(`<text x="${_svgFmt(cx2)}" y="${_svgFmt(cy2)}" dy="${dyEm}em" text-anchor="middle" font-family="ExportGlyphFont,serif" font-size="${_svgFmt(fs)}" paint-order="stroke fill" stroke="${strokeCol}" stroke-width="${_svgFmt(sw)}" stroke-linejoin="round" fill="${fillCol}">${_escXml(GLYPHS[p])}</text>`);
+    }
+  }
+
+  parts.push('</svg>');
+  const blob = new Blob([parts.join('\n')], {type:'image/svg+xml'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=`chess-gas-${N}x${H}-${mode}-step${stepCount}.svg`;
+  a.click();
+  URL.revokeObjectURL(url);
+  if(msg) msg.textContent = sizeState
+    ? `exported SVG (${N}×${H} cells, ${sizeState.widthIn===null?`${sizeState.pxW}×${sizeState.pxH}px`:`${fmtLen('v',sizeState.widthIn)}×${fmtLen('v',sizeState.heightIn)}`}).`
+    : `exported SVG (${N}×${H} cells).`;
+}
+document.getElementById('io-render-vector-btn')?.addEventListener('click',()=>{
+  pauseForExport();
+  exportBoardSVG(collectExportOpts('v'));
+});
+document.getElementById('io-render-both-btn')?.addEventListener('click',()=>{
+  pauseForExport();
+  exportBoardPNG(collectExportOpts('r'));
+  exportBoardSVG(collectExportOpts('v'));
 });
 
 // about-modal and about-close are after the script tag - wire on DOMContentLoaded
