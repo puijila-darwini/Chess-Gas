@@ -51,14 +51,18 @@ html.ph-mode body{
 .tb-btn:active::before,.mini-btn:active::before{opacity:.4}
 .tb-btn{background:linear-gradient(to bottom,#FFFFFF 0%,var(--bg2) 100%);color:var(--text);border:1px solid var(--border);
   border-radius:3px;padding:2px 8px;font-family:inherit;font-size:var(--fs);letter-spacing:.03em;cursor:pointer;outline:none;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 1px 1px rgba(30,50,70,.08)}
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 1px 1px rgba(30,50,70,.08);flex-shrink:0;white-space:nowrap}
 .tb-btn:hover{border-color:var(--border2);background:linear-gradient(to bottom,#FFFFFF 0%,#D2E0EE 100%)}
 .tb-btn:active{background:linear-gradient(to bottom,#CBDBEA 0%,#E4ECF4 100%);box-shadow:inset 0 1px 3px rgba(30,50,70,.25)}
 .tb-btn.on{border-color:#3A9B4A;color:#1E7A2E;background:linear-gradient(to bottom,#E6F7E9,#C9EBD0)}
 .tb-btn:disabled{opacity:0.4;cursor:not-allowed;pointer-events:none}
 .tb-btn.danger{border-color:#c0392b;color:#fff;background:linear-gradient(to bottom,#e0564a,#c0392b);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 1px 1px rgba(30,50,70,.08)}
 .tb-btn.danger:hover{background:linear-gradient(to bottom,#e8695e,#a8332a)}
-.tb-run-status{font-size:var(--fs-sm);color:var(--accent2);white-space:nowrap}
+#bottomStatusBar{
+  flex-shrink:0;display:none;padding:4px 10px;font-size:var(--fs-sm);color:var(--accent2);
+  background:var(--bg2);border-top:1px solid var(--border);white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+#bottomStatusBar.show{display:block}
 .tb-sel{background:linear-gradient(to bottom,#FFFFFF 0%,var(--bg2) 100%);color:var(--text);border:1px solid var(--border);
   border-radius:3px;padding:2px 5px;font-family:inherit;font-size:var(--fs);cursor:pointer;outline:none;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.8)}
@@ -96,7 +100,7 @@ input[type=range]{accent-color:var(--accent2);flex:1;min-width:0;height:10px}
 .mini-btn:hover{border-color:var(--border2);color:var(--accent)}
 .mini-btn:active{background:linear-gradient(to bottom,#CBDBEA 0%,#E4ECF4 100%);box-shadow:inset 0 1px 3px rgba(30,50,70,.2)}
 .mini-btn.on{border-color:var(--accent2);color:#fff;background:linear-gradient(to bottom,#3E86BE,#2E6DA4)}
-.exp-fx-row{display:grid;grid-template-columns:1fr 40px 40px;align-items:center;gap:4px;padding:2px 0}
+.exp-fx-row{display:grid;grid-template-columns:1fr 36px 36px 36px;align-items:center;gap:4px;padding:2px 0}
 .exp-fx-row.hdr{color:var(--text3);font-size:var(--fs-sm);border-bottom:1px solid var(--border);padding-bottom:3px;margin-bottom:2px;text-align:center}
 .exp-fx-row.hdr span:first-child{text-align:left}
 .exp-fx-row input[type=checkbox]{justify-self:center}
@@ -388,8 +392,7 @@ body[data-layout="phone"] #ph-backdrop.ph-open{display:block}
   <button class="tb-btn" id="resetBtn" title="Reset [R]">↺</button>
   <button class="tb-btn" id="jitterBtn" title="Jitter pieces [J]">⇄</button>
   <button class="tb-btn dice-btn" id="randomEverythingTopBtn" title="Randomise (hold for mode)"><span class="dice-label">⚄</span><span class="dice-mode-dot"></span></button>
-  <button class="tb-btn danger" id="runStopBtn" title="Stop the active export run" style="display:none">⏹ STOP RUN</button>
-  <span class="tb-run-status" id="tbRunStatus" style="display:none"></span>
+  <button class="tb-btn danger" id="runStopBtn" title="Stop the active export run or recording" style="display:none">⏹ STOP</button>
   <span class="tb-sep">|</span>
   <span class="tb-lbl">SPEED</span>
   <select class="tb-sel" id="mpf">
@@ -1099,40 +1102,40 @@ body[data-layout="phone"] #ph-backdrop.ph-open{display:block}
       <div class="sec-body" id="io-png-body">
         <div style="font-size:var(--fs-sm);color:var(--text3);padding:0 0 4px 0">dumps the current board to an image. pick what each output includes independently — greyed rows explain why they're unavailable.</div>
 
-        <div class="exp-fx-row hdr"><span>&nbsp;</span><span>raster</span><span>vector</span></div>
+        <div class="exp-fx-row hdr"><span>&nbsp;</span><span>raster</span><span>vector</span><span>video</span></div>
         <div class="exp-fx-row">
           <span class="exp-fx-label">glyphs (pieces)</span>
-          <input type="checkbox" id="exp-r-glyphs" checked><input type="checkbox" id="exp-v-glyphs" checked>
+          <input type="checkbox" id="exp-r-glyphs" checked><input type="checkbox" id="exp-v-glyphs" checked><input type="checkbox" id="exp-m-glyphs" checked>
         </div>
         <div class="exp-fx-row">
           <span class="exp-fx-label">trail<span class="tip tip-left" id="exp-tip-trail"><span class="tip-icon">?</span><span class="tip-box">on</span></span></span>
-          <input type="checkbox" id="exp-r-trail"><input type="checkbox" id="exp-v-trail">
+          <input type="checkbox" id="exp-r-trail"><input type="checkbox" id="exp-v-trail"><input type="checkbox" id="exp-m-trail">
         </div>
         <div class="exp-fx-row">
           <span class="exp-fx-label">field overlay<span class="tip tip-left" id="exp-tip-field"><span class="tip-icon">?</span><span class="tip-box">on</span></span></span>
-          <input type="checkbox" id="exp-r-field"><input type="checkbox" id="exp-v-field">
+          <input type="checkbox" id="exp-r-field"><input type="checkbox" id="exp-v-field"><input type="checkbox" id="exp-m-field">
         </div>
         <div class="exp-fx-row">
-          <span class="exp-fx-label">bloom<span class="tip tip-left"><span class="tip-icon">?</span><span class="tip-box">Bloom is a raster self-composite technique (blurred copies screened over the original) — there's no vector equivalent, so it can never appear in an SVG export.</span></span></span>
-          <input type="checkbox" id="exp-r-bloom"><input type="checkbox" id="exp-v-bloom" disabled>
+          <span class="exp-fx-label">bloom<span class="tip tip-left"><span class="tip-icon">?</span><span class="tip-box">Bloom is a raster self-composite technique (blurred copies screened over the original) — there's no vector equivalent, so it can never appear in an SVG export. Video is canvas-based like raster, so it's available there too.</span></span></span>
+          <input type="checkbox" id="exp-r-bloom"><input type="checkbox" id="exp-v-bloom" disabled><input type="checkbox" id="exp-m-bloom">
         </div>
         <div class="exp-fx-row">
           <span class="exp-fx-label">capture bodies<span class="tip tip-left" id="exp-tip-bodies"><span class="tip-icon">?</span><span class="tip-box">on</span></span></span>
-          <input type="checkbox" id="exp-r-bodies"><input type="checkbox" id="exp-v-bodies">
+          <input type="checkbox" id="exp-r-bodies"><input type="checkbox" id="exp-v-bodies"><input type="checkbox" id="exp-m-bodies">
         </div>
         <div class="exp-fx-row">
           <span class="exp-fx-label">gradient</span>
-          <input type="checkbox" id="exp-r-gradient"><input type="checkbox" id="exp-v-gradient">
+          <input type="checkbox" id="exp-r-gradient"><input type="checkbox" id="exp-v-gradient"><input type="checkbox" id="exp-m-gradient">
         </div>
         <div class="exp-fx-row">
           <span class="exp-fx-label">pulse</span>
-          <input type="checkbox" id="exp-r-pulse"><input type="checkbox" id="exp-v-pulse">
+          <input type="checkbox" id="exp-r-pulse"><input type="checkbox" id="exp-v-pulse"><input type="checkbox" id="exp-m-pulse">
         </div>
         <div class="exp-fx-row">
           <span class="exp-fx-label">rainbow</span>
-          <input type="checkbox" id="exp-r-rainbow"><input type="checkbox" id="exp-v-rainbow">
+          <input type="checkbox" id="exp-r-rainbow"><input type="checkbox" id="exp-v-rainbow"><input type="checkbox" id="exp-m-rainbow">
         </div>
-        <div style="font-size:var(--fs-sm);color:var(--text3);padding:4px 0">glyphs off = flat colour dump (1px/cell in raster, squares-only in vector) — compact at any board size. gradient/pulse/rainbow read their colour, direction, and intensity from the live DISPLAY→EFFECTS sliders; these checkboxes only control whether each is included.</div>
+        <div style="font-size:var(--fs-sm);color:var(--text3);padding:4px 0">glyphs off = flat colour dump (1px/cell, no VIDEO SIZE scaling) in all three — pieces still show up as tinted pixels, just no drawn glyph shapes. Compact and fast on large boards, where drawing individual piece glyphs every video frame would be too slow to sustain a real frame rate anyway. gradient/pulse/rainbow read their colour, direction, and intensity from the live DISPLAY→EFFECTS sliders; these checkboxes only control whether each is included.</div>
 
         <div class="section" style="margin:6px 0 0;border:1px solid var(--border)">
           <div class="section-hdr open" data-target="io-size-r-controls" style="font-size:var(--fs-sm)"><span>RASTER SIZE</span><span class="arrow">▶</span></div>
@@ -1216,6 +1219,30 @@ body[data-layout="phone"] #ph-backdrop.ph-open{display:block}
           </div>
         </div>
 
+        <div class="section" style="margin:6px 0 0;border:1px solid var(--border)">
+          <div class="section-hdr open" data-target="io-size-m-controls" style="font-size:var(--fs-sm)"><span>VIDEO SIZE</span><span class="arrow">▶</span></div>
+          <div class="sec-body" id="io-size-m-controls">
+            <label style="display:flex;align-items:center;gap:6px;font-size:var(--fs-lbl);color:var(--text2);padding:2px 0;cursor:pointer">
+              <input type="checkbox" id="io-size-m-enable"> override size (long edge — glyph mode only; flat mode is always 1px/cell, ignoring this)
+            </label>
+            <div id="io-size-m-block" style="display:none;padding:4px 0 0 0">
+              <div class="row" style="gap:4px;flex-wrap:wrap">
+                <button class="mini-btn size-preset-screen-m" data-preset="QVGA" style="flex:1">QVGA</button>
+                <button class="mini-btn size-preset-screen-m" data-preset="VGA" style="flex:1">VGA</button>
+                <button class="mini-btn size-preset-screen-m" data-preset="SVGA" style="flex:1">SVGA</button>
+                <button class="mini-btn size-preset-screen-m" data-preset="HD 1920" style="flex:1">HD</button>
+                <button class="mini-btn size-preset-screen-m" data-preset="QHD 2560" style="flex:1">QHD</button>
+                <button class="mini-btn size-preset-screen-m" data-preset="4K 3840" style="flex:1">4K</button>
+              </div>
+              <div class="row" style="gap:6px;align-items:center;padding-top:4px">
+                <label style="font-size:var(--fs-sm);color:var(--text3)">long edge (px)</label>
+                <input type="number" id="io-size-m-width" value="1280" min="16" step="16" style="width:64px">
+              </div>
+              <div id="io-size-m-info" style="font-size:var(--fs-sm);color:var(--text3);padding:4px 0"></div>
+            </div>
+          </div>
+        </div>
+
         <div class="row" style="gap:4px;padding-top:6px">
           <button class="mini-btn" id="io-render-raster-btn" style="flex:1">⬇ RENDER: RASTER</button>
           <button class="mini-btn" id="io-render-vector-btn" style="flex:1">⬇ RENDER: VECTOR</button>
@@ -1246,6 +1273,40 @@ body[data-layout="phone"] #ph-backdrop.ph-open{display:block}
             <div id="io-run-estimate" style="font-size:var(--fs-sm);color:var(--text3);padding:4px 0"></div>
             <button class="mini-btn" id="io-run-start-btn" style="width:100%;margin-top:2px">▶ START EXPORT RUN</button>
             <div id="io-run-status" style="font-size:var(--fs-sm);color:var(--accent2);padding:4px 0 0;min-height:1.2em"></div>
+          </div>
+        </div>
+
+        <div class="section" style="margin:6px 0 0;border:1px solid var(--border)">
+          <div class="section-hdr" data-target="io-vid-body" style="font-size:var(--fs-sm)"><span>VIDEO EXPORT</span><span class="arrow">▶</span></div>
+          <div class="sec-body hidden" id="io-vid-body">
+            <div style="font-size:var(--fs-sm);color:var(--text3);padding:0 0 4px">records a WebM straight from the sim — driven by ticks, not real time, using the video column above and VIDEO SIZE. Capture itself still takes real time to record (one video-second per one video-second, regardless of how fast ticks step) — that's how video recording works, not something this can shortcut.</div>
+            <div id="io-vid-nosupport" style="display:none;font-size:var(--fs-sm);color:#e0a95c;padding:2px 0">This browser doesn't support MediaRecorder/canvas capture — video export is disabled here.</div>
+            <div class="row" style="gap:6px;align-items:center;padding:2px 0">
+              <label style="font-size:var(--fs-sm);color:var(--text3)">fps</label>
+              <input type="number" id="io-vid-fps" value="30" min="1" max="60" step="1" style="width:48px">
+              <label style="font-size:var(--fs-sm);color:var(--text3)">ticks/frame</label>
+              <input type="number" id="io-vid-tpf" value="1" min="1" step="1" style="width:48px">
+            </div>
+            <div class="row" style="gap:6px;align-items:center;padding:2px 0">
+              <label style="font-size:var(--fs-sm);color:var(--text3)">for</label>
+              <input type="number" id="io-vid-total" value="900" min="0" step="100" style="width:64px">
+              <label style="font-size:var(--fs-sm);color:var(--text3)">ticks (0 = until stopped)</label>
+            </div>
+            <div class="row" style="gap:4px;padding-top:2px">
+              <button class="mini-btn vid-quality-btn" data-q="low" style="flex:1">low</button>
+              <button class="mini-btn vid-quality-btn on" data-q="med" style="flex:1">medium</button>
+              <button class="mini-btn vid-quality-btn" data-q="high" style="flex:1">high</button>
+            </div>
+            <div id="io-vid-summary" style="border:1px solid var(--border);border-radius:3px;padding:6px 8px;margin:4px 0;background:var(--bg2)">
+              <div class="row" style="justify-content:space-between;font-size:var(--fs-sm)"><span style="color:var(--text3)">mode</span><span id="io-vid-sum-mode" style="color:var(--text2);font-weight:bold"></span></div>
+              <div class="row" style="justify-content:space-between;font-size:var(--fs-sm)"><span style="color:var(--text3)">resolution</span><span id="io-vid-sum-res" style="color:var(--text2)"></span></div>
+              <div class="row" style="justify-content:space-between;font-size:var(--fs-sm)"><span style="color:var(--text3)">length</span><span id="io-vid-sum-len" style="color:var(--text2)"></span></div>
+              <div class="row" style="justify-content:space-between;font-size:var(--fs-sm)"><span style="color:var(--text3)">recording takes</span><span id="io-vid-sum-time" style="color:var(--text2)"></span></div>
+              <div class="row" style="justify-content:space-between;font-size:var(--fs-sm)"><span style="color:var(--text3)">est. file size</span><span id="io-vid-sum-size" style="color:var(--text2)"></span></div>
+            </div>
+            <div id="io-vid-alarm" style="display:none;background:#c0392b;color:#fff;border-radius:3px;padding:6px 8px;margin:4px 0;font-size:var(--fs-sm);font-weight:bold;text-align:center"></div>
+            <button class="mini-btn" id="io-vid-start-btn" style="width:100%;margin-top:2px">● RECORD</button>
+            <div id="io-vid-status" style="font-size:var(--fs-sm);color:var(--accent2);padding:4px 0 0;min-height:1.2em"></div>
           </div>
         </div>
       </div>
@@ -3110,7 +3171,6 @@ function render(){
     // viewport size regardless of board size — isolated cells can fall between
     // samples at extreme ratios, traded deliberately for speed.
     renderSparseBoard(cs, vw, vh, showPieces());
-    if(running) for(let i=0;i<N*H;i++) if(flashMap[i]>0) flashMap[i]=Math.max(0,flashMap[i]-0.05);
     return;
   }
 
@@ -3145,7 +3205,6 @@ function render(){
       ctx.fillRect(panX+x*cs,panY+y*cs,cs,cs);
     }
   }
-  if(running) for(let i=0;i<N*H;i++) if(flashMap[i]>0) flashMap[i]=Math.max(0,flashMap[i]-0.05);
 }
 
 // Draws piece glyphs on a dedicated overlay canvas so they always render above
@@ -4323,6 +4382,7 @@ function loop(){
     }
   }
   if(running) applyDecay();
+  if(running) decayFlashMap();
   if(running) applyDynamicPotential(_stepsThisFrame);
   if(running) applyPieceGenPotential();
   if(running) processSourcesSinks();
@@ -5244,6 +5304,19 @@ function savePotBase(){ dynPotBase = new Float32Array(potentialMap); }
 let pieceGenMap = null;
 // ── DECAY ───────────────────────────────────────────────────────────────────
 // Each step, every piece has a small chance of spontaneously decaying.
+// Fades capture-flash tint back to zero, a fixed step per call. This used
+// to happen as a side effect of rendering (render() decremented it after
+// drawing), which meant it silently stalled during anything that legitimately
+// skips live rendering — the batch export run, video recording — since
+// ticks kept setting flashMap but nothing was ever there to fade it back
+// down afterward. Now it's called explicitly alongside applyDecay() at
+// every one of its call sites, so it can't go stale just because rendering
+// did. Deliberately NOT folded into applyDecay() itself: that function
+// early-returns when decayMode is 'none' (the common case), which would
+// silently skip flash fade too if this lived inside it.
+function decayFlashMap(){
+  for(let i=0;i<N*H;i++) if(flashMap[i]>0) flashMap[i]=Math.max(0,flashMap[i]-0.05);
+}
 function applyDecay(){
   const mode = document.getElementById('decayMode')?.value || 'none';
   if(mode==='none') return;
@@ -6200,7 +6273,7 @@ function collectExportMetadata(exportOpts){
 // board state is a real workflow), so everything here is keyed by panel
 // ('r' or 'v') rather than a single shared unit/state pair.
 const SIZE_DIM_WARN=16000, SIZE_DIM_BLOCK=30000;
-const _exportSizeUnit={r:'in', v:'in'}; // 'in' | 'cm' | 'px' (px = screen presets: value is a direct long-edge pixel target, no DPI)
+const _exportSizeUnit={r:'in', v:'in', m:'px'}; // 'in' | 'cm' | 'px' (px = screen presets: value is a direct long-edge pixel target, no DPI)
 function computeSizeExportDims(panel){
   const widthVal=parseFloat(document.getElementById(`io-size-${panel}-width`)?.value)||0;
   const unit=_exportSizeUnit[panel];
@@ -6303,6 +6376,7 @@ function initSizePanel(panel){
 }
 initSizePanel('r');
 initSizePanel('v');
+initSizePanel('m');
 
 // Reads the export panel's checkbox matrix for one column ('r' raster or
 // 'v' vector) into a plain opts object — the single source of truth both
@@ -6332,7 +6406,7 @@ function updateExportAvailability(){
   const fieldOn = fieldMode!=='none';
   const bodiesOn = capturePositions.length>0;
   const set=(key,on,offMsg)=>{
-    ['r','v'].forEach(panel=>{
+    ['r','v','m'].forEach(panel=>{
       const el=document.getElementById(`exp-${panel}-${key}`);
       if(el) el.disabled = !on;
     });
@@ -6369,12 +6443,13 @@ function initExportCheckboxDefaults(){
   const liveGrad = document.getElementById('fxGradient')?.checked;
   const livePulse = document.getElementById('fxPulse')?.checked;
   const liveRainbow = document.getElementById('fxRainbow')?.checked;
-  ['r','v'].forEach(panel=>{
+  ['r','v','m'].forEach(panel=>{
     const set=(key,val)=>{ const el=document.getElementById(`exp-${panel}-${key}`); if(el) el.checked=val; };
     set('trail', liveTrail); set('field', liveField); set('bodies', liveBodies);
     set('gradient', liveGrad); set('pulse', livePulse); set('rainbow', liveRainbow);
   });
   document.getElementById('exp-r-bloom').checked = liveBloom; // exp-v-bloom stays unchecked — permanently disabled, see the HTML.
+  document.getElementById('exp-m-bloom').checked = liveBloom; // video is canvas-based like raster, so bloom is available here too.
   updateExportAvailability();
 }
 initExportCheckboxDefaults();
@@ -6393,6 +6468,75 @@ function exportBoardPNG(opts){
 // by both the single-shot download path below AND the batch export run,
 // so a hundred-capture run can't silently drift from what a one-off
 // button click produces — same function, either way.
+// Draws one "glyph mode" frame — squares, then trail/field/bodies/bloom,
+// then glyphs on top — onto an already-sized canvas/context. Shared by the
+// PNG exporter's glyph-mode branch and the video exporter's per-frame
+// recording, so a hundred video frames can't visually drift from what a
+// single PNG export produces. Deliberately does NOT touch exCanvas.width/
+// height — resizing a canvas clears it and is expensive, fine to do once
+// per PNG export but not something that should happen every video frame,
+// so sizing is the caller's job, once, before any frames are drawn.
+function drawGlyphModeFrame(exCtx, exCanvas, cellPx, opts, _fx){
+  // squares (checkerboard + potential/gradient/pulse effects + capture
+  // flash, no piece blend) — mirrors the live gl-branch of render(),
+  // including the flash tint.
+  for(let y=0;y<H;y++) for(let x=0;x<N;x++){
+    const bi=idx(x,y), pv=potentialMap[bi];
+    const sq=(x+y)%2===0?SQ_LIGHT:SQ_DARK;
+    if(pv>=1.0){ exCtx.fillStyle='rgb(14,12,18)'; exCtx.fillRect(x*cellPx,y*cellPx,cellPx,cellPx); continue; }
+    const[sqR,sqG,sqB]=computeSquareColour(x,y,pv,sq,_fx);
+    const fl=flashMap[bi];
+    if(fl>0) exCtx.fillStyle=`rgb(${(sqR+(FLASH_RGB[0]-sqR)*fl)|0},${(sqG+(FLASH_RGB[1]-sqG)*fl)|0},${(sqB+(FLASH_RGB[2]-sqB)*fl)|0})`;
+    else exCtx.fillStyle=`rgb(${sqR},${sqG},${sqB})`;
+    exCtx.fillRect(x*cellPx,y*cellPx,cellPx,cellPx);
+  }
+  // bloom/trail/field/bodies all sit below the glyph layer and get baked
+  // in here, before glyphs are drawn — matching the live view, where these
+  // are separate un-bloomed canvas layers stacked under the always-crisp
+  // glyph canvas (see renderGlyphs()'s comment).
+  compositeEffectsOntoExport(exCtx, exCanvas, cellPx, opts);
+  // glyphs on top, always last and never blurred by bloom, mirroring
+  // renderGlyphs()'s styling and stacking position
+  if(opts.glyphs){
+    exCtx.textAlign='center'; exCtx.textBaseline='middle';
+    exCtx.font=`${Math.max(8,cellPx*0.78)}px serif`;
+    for(let y=0;y<H;y++) for(let x=0;x<N;x++){
+      const p=board[idx(x,y)]; if(!p) continue;
+      const hsl=PIECE_HSL[p];
+      const cx2=x*cellPx+cellPx/2, cy2=y*cellPx+cellPx/2+cellPx*0.04;
+      exCtx.lineWidth=Math.max(1,cellPx*0.07);
+      exCtx.strokeStyle=isWhite(p)?`hsl(${hsl[0]},${hsl[1]}%,15%)`:`hsl(${hsl[0]},${hsl[1]}%,85%)`;
+      exCtx.strokeText(GLYPHS[p],cx2,cy2);
+      exCtx.fillStyle=`hsl(${hsl[0]},${hsl[1]}%,${hsl[2]}%)`;
+      exCtx.fillText(GLYPHS[p],cx2,cy2);
+    }
+  }
+}
+// Draws one "flat mode" frame — 1 real pixel per cell via computeCellPixelColour
+// (which already blends in potential/gradient/pulse/piece-tint), then trail/
+// field/bodies/bloom composited on top at cellPx=1. Self-contained like
+// drawGlyphModeFrame — sizing is still the caller's job (exCanvas.width=N,
+// exCanvas.height=H, once), since this needs to run every video frame
+// without the destructive/expensive canvas resize a fresh PNG export can
+// afford to do each time.
+function drawFlatModeFrame(exCtx, exCanvas, opts, _fx){
+  const img=exCtx.createImageData(N,H);
+  const d=img.data;
+  for(let y=0;y<H;y++) for(let x=0;x<N;x++){
+    // Always show piece tint here (hardcoded true, not opts.glyphs) — flat
+    // mode only ever runs when opts.glyphs is false (that's how flat mode
+    // gets selected in the first place), so gating piece colour on that
+    // same flag meant it was suppressed unconditionally, not toggled: every
+    // flat-mode render came out looking like an empty board regardless of
+    // what was actually on it. Piece colour tint isn't a "glyph" — there's
+    // no text being drawn at 1px/cell — it's flat mode's only way of
+    // showing where pieces are at all, so it isn't optional here.
+    const[r,g,b]=computeCellPixelColour(x,y,_fx,true);
+    const o=(y*N+x)*4; d[o]=r;d[o+1]=g;d[o+2]=b;d[o+3]=255;
+  }
+  exCtx.putImageData(img,0,0);
+  compositeEffectsOntoExport(exCtx, exCanvas, 1, opts);
+}
 async function buildPngBlob(opts, sizeState){
   const mode = opts.glyphs ? 'glyph' : 'flat';
   const _fx = getSquareFxState({gradOn:opts.gradient, pulseOn:opts.pulse, rainbowOn:opts.rainbow});
@@ -6406,17 +6550,7 @@ async function buildPngBlob(opts, sizeState){
   if(mode==='flat'){
     cellPx=1;
     exCanvas.width=N; exCanvas.height=H;
-    const img=exCtx.createImageData(N,H);
-    const d=img.data;
-    for(let y=0;y<H;y++) for(let x=0;x<N;x++){
-      // opts.glyphs (this function's "sp" arg) does double duty in flat mode:
-      // it's whether an occupied cell's pixel gets tinted by its piece's
-      // colour at all — flat mode's own equivalent of "show pieces", since
-      // there's no room to draw an actual glyph shape at 1px/cell.
-      const[r,g,b]=computeCellPixelColour(x,y,_fx,opts.glyphs);
-      const o=(y*N+x)*4; d[o]=r;d[o+1]=g;d[o+2]=b;d[o+3]=255;
-    }
-    exCtx.putImageData(img,0,0);
+    drawFlatModeFrame(exCtx, exCanvas, opts, _fx);
   } else {
     if(sizeState){
       cellPx=sizeState.cellPx;
@@ -6425,43 +6559,8 @@ async function buildPngBlob(opts, sizeState){
       cellPx=Math.max(4,Math.min(IDEAL_CELL_PX,Math.floor(MAX_DIM/Math.max(N,H))));
     }
     exCanvas.width=N*cellPx; exCanvas.height=H*cellPx;
-    // squares (checkerboard + potential/gradient/pulse effects + capture
-    // flash, no piece blend) — mirrors the live gl-branch of render(),
-    // including the flash tint that was previously missing here.
-    for(let y=0;y<H;y++) for(let x=0;x<N;x++){
-      const bi=idx(x,y), pv=potentialMap[bi];
-      const sq=(x+y)%2===0?SQ_LIGHT:SQ_DARK;
-      if(pv>=1.0){ exCtx.fillStyle='rgb(14,12,18)'; exCtx.fillRect(x*cellPx,y*cellPx,cellPx,cellPx); continue; }
-      const[sqR,sqG,sqB]=computeSquareColour(x,y,pv,sq,_fx);
-      const fl=flashMap[bi];
-      if(fl>0) exCtx.fillStyle=`rgb(${(sqR+(FLASH_RGB[0]-sqR)*fl)|0},${(sqG+(FLASH_RGB[1]-sqG)*fl)|0},${(sqB+(FLASH_RGB[2]-sqB)*fl)|0})`;
-      else exCtx.fillStyle=`rgb(${sqR},${sqG},${sqB})`;
-      exCtx.fillRect(x*cellPx,y*cellPx,cellPx,cellPx);
-    }
-    // bloom/trail/field/bodies all sit below the glyph layer and get baked
-    // in here, before glyphs are drawn — matching the live view, where these
-    // are separate un-bloomed canvas layers stacked under the always-crisp
-    // glyph canvas (see renderGlyphs()'s comment).
-    compositeEffectsOntoExport(exCtx, exCanvas, cellPx, opts);
-    // glyphs on top, always last and never blurred by bloom, mirroring
-    // renderGlyphs()'s styling and stacking position
-    if(opts.glyphs){
-      exCtx.textAlign='center'; exCtx.textBaseline='middle';
-      exCtx.font=`${Math.max(8,cellPx*0.78)}px serif`;
-      for(let y=0;y<H;y++) for(let x=0;x<N;x++){
-        const p=board[idx(x,y)]; if(!p) continue;
-        const hsl=PIECE_HSL[p];
-        const cx2=x*cellPx+cellPx/2, cy2=y*cellPx+cellPx/2+cellPx*0.04;
-        exCtx.lineWidth=Math.max(1,cellPx*0.07);
-        exCtx.strokeStyle=isWhite(p)?`hsl(${hsl[0]},${hsl[1]}%,15%)`:`hsl(${hsl[0]},${hsl[1]}%,85%)`;
-        exCtx.strokeText(GLYPHS[p],cx2,cy2);
-        exCtx.fillStyle=`hsl(${hsl[0]},${hsl[1]}%,${hsl[2]}%)`;
-        exCtx.fillText(GLYPHS[p],cx2,cy2);
-      }
-    }
+    drawGlyphModeFrame(exCtx, exCanvas, cellPx, opts, _fx);
   }
-
-  if(mode==='flat') compositeEffectsOntoExport(exCtx, exCanvas, cellPx, opts);
 
   return new Promise(resolve=>{
     exCanvas.toBlob(async blob=>{
@@ -6688,23 +6787,56 @@ async function writeToDir(dirHandle, filename, blob){
 }
 
 let _exportRunActive=false, _exportRunStopRequested=false;
+let _videoRecording=false, _videoStopRequested=false;
+// Declared here (not down in the VIDEO EXPORT section where it's used for
+// the UI toggling) because setRunUIActive references it and gets called
+// for the first time before that section of the script runs.
+const _hasVideoSupport = !!(window.MediaRecorder && HTMLCanvasElement.prototype.captureStream);
+// Generic bottom status bar — a persistent, always-in-flow strip at the
+// bottom of the page (not squeezed into the already-tight toolbar), meant
+// to hold whatever transient status text something needs to show without
+// requiring its own tab to be open. Currently just the export run/video
+// status, but written generically since other features may want a home
+// here later too — empty text hides it, any text shows it.
+function setBottomStatus(text){
+  const bar=document.getElementById('bottomStatusBar');
+  const txt=document.getElementById('bottomStatusText');
+  if(txt) txt.textContent=text;
+  if(bar) bar.classList.toggle('show', !!text);
+}
 // Sets a run status message in both places it's shown — the EXPORT tab
-// (if open) and the always-visible toolbar indicator, so progress is
-// visible without needing that tab open.
+// (if open) and the bottom status bar, so progress is visible without
+// needing that tab open.
 function setRunStatusText(txt){
   const a=document.getElementById('io-run-status'); if(a) a.textContent=txt;
-  const b=document.getElementById('tbRunStatus'); if(b) b.textContent=txt;
+  setBottomStatus(txt);
+}
+function setVidStatusText(txt){
+  const a=document.getElementById('io-vid-status'); if(a) a.textContent=txt;
+  setBottomStatus(txt);
 }
 // The front-page controls (Play/Step/Reset/Jitter/Randomise) all mutate
-// simulation state directly, same as the run's own loop does — running
-// either while a run is active would step the board from two places at
-// once. Rather than the previous approach (silently swallowing their
-// clicks), they're now genuinely disabled — a real HTML disabled button
-// can't fire a click event at all, which is more robust than intercepting
-// one — and a dedicated STOP RUN button takes their place as the one
-// active, obviously-labelled control for what's actually running. Covers
-// the minimal-mode duplicate buttons too, since those just forward .click()
-// to these same elements and a disabled element won't respond to that either.
+// simulation state directly, same as a driven export process's own loop
+// does — running either while one is active would step the board from two
+// places at once. Rather than silently swallowing their clicks, they're
+// genuinely disabled — a real HTML disabled button can't fire a click event
+// at all — and a single toolbar STOP button stands in for whichever process
+// (image batch run or video record) is actually running; they're mutually
+// exclusive in practice, so one shared control is enough rather than a
+// second copy of this wiring for video specifically. Progress text lives in
+// the bottom status bar, not here — the toolbar's tight enough as it is.
+function setFrontPageRunUI(active){
+  ['playBtn','stepBtn','resetBtn','jitterBtn','randomEverythingTopBtn','minPlayBtn','minResetBtn'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.disabled=active;
+  });
+  const stopBtn=document.getElementById('runStopBtn');
+  if(stopBtn) stopBtn.style.display = active ? '' : 'none';
+  if(!active) setBottomStatus('');
+}
+document.getElementById('runStopBtn')?.addEventListener('click', ()=>{
+  if(_exportRunActive) stopExportBatch();
+  if(_videoRecording) stopVideoRecord();
+});
 function setRunUIActive(active){
   const btn=document.getElementById('io-run-start-btn');
   if(btn){
@@ -6714,16 +6846,13 @@ function setRunUIActive(active){
   ['io-run-raster','io-run-vector','io-run-interval','io-run-total'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.disabled=active;
   });
-  ['playBtn','stepBtn','resetBtn','jitterBtn','randomEverythingTopBtn','minPlayBtn','minResetBtn'].forEach(id=>{
-    const el=document.getElementById(id); if(el) el.disabled=active;
-  });
-  const stopBtn=document.getElementById('runStopBtn');
-  if(stopBtn) stopBtn.style.display = active ? '' : 'none';
-  const statusEl=document.getElementById('tbRunStatus');
-  if(statusEl) statusEl.style.display = active ? '' : 'none';
+  // Mutually exclusive with video recording — both drive the sim
+  // independently, so only one can run at a time.
+  const vidBtn=document.getElementById('io-vid-start-btn');
+  if(vidBtn && _hasVideoSupport) vidBtn.disabled = active;
+  setFrontPageRunUI(active || _videoRecording);
   if(!active) setRunStatusText('');
 }
-document.getElementById('runStopBtn')?.addEventListener('click', stopExportBatch);
 function stopExportBatch(){ _exportRunStopRequested=true; setRunStatusText('stopping…'); }
 
 async function runExportBatch(){
@@ -6766,6 +6895,7 @@ async function runExportBatch(){
       rebuildPieceLists();
       step();
       applyDecay();
+      decayFlashMap();
       applyDynamicPotential(1);
       applyPieceGenPotential();
       processSourcesSinks();
@@ -6814,6 +6944,203 @@ async function runExportBatch(){
   }
 }
 setRunUIActive(false);
+
+// ── VIDEO EXPORT ──────────────────────────────────────────────────────────
+// Records a WebM by compositing drawGlyphModeFrame() onto a dedicated
+// canvas every N ticks and pushing that frame into a MediaRecorder via
+// captureStream(0) (manual mode — no automatic time-based sampling) +
+// track.requestFrame(). Content is tick-driven (ticks/frame controls what
+// changes between frames, independent of real speed), but MediaRecorder
+// timestamps every captured frame by wall-clock time it was pushed, not by
+// anything we control — so frame *capture* still has to be paced to real
+// time at the target fps, or the output video would have all its frames
+// crammed into a fraction of a second of playback. That real-time pacing
+// is an inherent MediaRecorder constraint, not something skippable: a
+// 900-tick recording at 30fps/1 tick-per-frame takes ~30 real seconds to
+// produce, however fast the ticks themselves could step.
+const VID_QUALITY_BITRATE = {low:1_000_000, med:4_000_000, high:12_000_000};
+let _vidQuality = 'med';
+document.querySelectorAll('.vid-quality-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    _vidQuality = btn.dataset.q;
+    document.querySelectorAll('.vid-quality-btn').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');
+    updateVidEstimate();
+  });
+});
+function estimateVideoSize(){
+  const flat = !document.getElementById('exp-m-glyphs')?.checked;
+  if(flat) return {pxW:N, pxH:H, cellPx:1, flat:true};
+  const sizeOn = document.getElementById('io-size-m-enable')?.checked;
+  const s = sizeOn ? computeSizeExportDims('m') : null;
+  const cellPx = s ? s.cellPx : Math.max(4,Math.min(24,Math.floor(16000/Math.max(N,H))));
+  return {pxW:N*cellPx, pxH:H*cellPx, cellPx, flat:false};
+}
+const VID_ALARM_MEGAPIXELS = 4_000_000;   // ~2000x2000-ish — the point where a canvas this size starts being a real risk on typical hardware
+const VID_ALARM_DURATION_S = 120;          // 2 minutes of output video
+const VID_ALARM_BYTES = 300*1024*1024;     // 300MB
+function updateVidEstimate(){
+  const modeEl=document.getElementById('io-vid-sum-mode'), resEl=document.getElementById('io-vid-sum-res'),
+        lenEl=document.getElementById('io-vid-sum-len'), timeEl=document.getElementById('io-vid-sum-time'),
+        sizeEl=document.getElementById('io-vid-sum-size'), alarmEl=document.getElementById('io-vid-alarm');
+  if(!modeEl) return;
+  const fps = Math.max(1, parseInt(document.getElementById('io-vid-fps')?.value)||30);
+  const tpf = Math.max(1, parseInt(document.getElementById('io-vid-tpf')?.value)||1);
+  const total = Math.max(0, parseInt(document.getElementById('io-vid-total')?.value)||0);
+  const {pxW,pxH,flat} = estimateVideoSize();
+  const bitrate = VID_QUALITY_BITRATE[_vidQuality];
+
+  modeEl.textContent = flat ? 'flat (1px/cell)' : 'glyph (readable pieces)';
+  resEl.textContent = `${pxW}×${pxH}px${flat ? ' — fixed to board size, VIDEO SIZE ignored' : ''}`;
+
+  const warnings = [];
+  if(pxW*pxH > VID_ALARM_MEGAPIXELS) warnings.push(`${pxW}×${pxH}px is a big canvas to redraw every frame — may stutter or fail on this machine`);
+
+  if(total>0){
+    const frames = Math.floor(total/tpf);
+    const durationS = frames/fps;
+    const bytes = (bitrate/8)*durationS;
+    lenEl.textContent = `${frames} frames, ${durationS.toFixed(1)}s of video`;
+    timeEl.textContent = `~${durationS.toFixed(0)}s of real time`;
+    sizeEl.textContent = `~${humanBytes(bytes)}`;
+    if(durationS > VID_ALARM_DURATION_S) warnings.push(`${(durationS/60).toFixed(1)} minutes of video is a lot to sit and record — recording takes real time, same length as the output`);
+    if(bytes > VID_ALARM_BYTES) warnings.push(`~${humanBytes(bytes)} is a large file at ${_vidQuality} quality — consider a lower quality or shorter run`);
+  } else {
+    lenEl.textContent = 'until stopped';
+    timeEl.textContent = 'open-ended';
+    sizeEl.textContent = 'depends how long you let it run';
+    warnings.push(`"until stopped" has no built-in limit — recording time always equals video length, so this could run a long time before you remember to hit STOP`);
+  }
+  if(alarmEl){
+    if(warnings.length){
+      alarmEl.style.display='';
+      alarmEl.textContent = '⚠ ' + warnings.join(' · ');
+    } else alarmEl.style.display='none';
+  }
+}
+['io-vid-fps','io-vid-tpf','io-vid-total','io-size-m-enable','io-size-m-width','exp-m-glyphs'].forEach(id=>{
+  document.getElementById(id)?.addEventListener('input', updateVidEstimate);
+  document.getElementById(id)?.addEventListener('change', updateVidEstimate);
+});
+updateVidEstimate();
+
+if(!_hasVideoSupport){
+  const w=document.getElementById('io-vid-nosupport'); if(w) w.style.display='';
+  const b=document.getElementById('io-vid-start-btn'); if(b) b.disabled=true;
+}
+
+function setVideoUIActive(active){
+  const btn=document.getElementById('io-vid-start-btn');
+  if(btn){
+    btn.textContent = active ? '■ STOP RECORDING' : '● RECORD';
+    btn.onclick = active ? stopVideoRecord : startVideoRecord;
+  }
+  ['io-vid-fps','io-vid-tpf','io-vid-total'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.disabled=active;
+  });
+  document.querySelectorAll('.vid-quality-btn').forEach(b=>b.disabled=active);
+  // Mutually exclusive with the image batch run — both drive the sim
+  // independently, so only one can run at a time.
+  const runBtn=document.getElementById('io-run-start-btn');
+  if(runBtn) runBtn.disabled = active;
+  setFrontPageRunUI(active || _exportRunActive);
+  if(!active) setVidStatusText('');
+}
+function stopVideoRecord(){ _videoStopRequested=true; setVidStatusText('stopping…'); }
+
+async function startVideoRecord(){
+  if(!_hasVideoSupport || _videoRecording) return;
+  const opts = collectExportOpts('m');
+  const fps = Math.max(1, parseInt(document.getElementById('io-vid-fps')?.value)||30);
+  const tpf = Math.max(1, parseInt(document.getElementById('io-vid-tpf')?.value)||1);
+  const total = Math.max(0, parseInt(document.getElementById('io-vid-total')?.value)||0);
+  const bitrate = VID_QUALITY_BITRATE[_vidQuality];
+  const {pxW,pxH,cellPx} = estimateVideoSize();
+  if(pxW>SIZE_DIM_BLOCK || pxH>SIZE_DIM_BLOCK){ setVidStatusText(`${pxW}×${pxH}px is too large — reduce VIDEO SIZE.`); return; }
+
+  pauseForExport();
+
+  const vidCanvas = document.createElement('canvas');
+  vidCanvas.width = pxW; vidCanvas.height = pxH; // sized once — never resized per-frame, see drawGlyphModeFrame's comment
+  const vidCtx = vidCanvas.getContext('2d');
+  const stream = vidCanvas.captureStream(0); // 0 = manual frames only, no time-based sampling
+  const track = stream.getVideoTracks()[0];
+
+  const mimeCandidates = ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+  const mimeType = mimeCandidates.find(m=>MediaRecorder.isTypeSupported(m)) || 'video/webm';
+  const recorder = new MediaRecorder(stream, {mimeType, videoBitsPerSecond:bitrate});
+  const chunks=[];
+  recorder.ondataavailable = e=>{ if(e.data.size>0) chunks.push(e.data); };
+
+  _videoRecording=true; _videoStopRequested=false;
+  setVideoUIActive(true);
+  recorder.start();
+
+  const frameIntervalMs = 1000/fps;
+  let lastFrameTime = performance.now();
+  let t=0, frames=0;
+  try{
+    while(_videoRecording && !_videoStopRequested && (total===0 || t<total)){
+      // Per-tick simulation advance — same sequence as the batch export
+      // run's loop, duplicated for the same reason (see that section).
+      _topoMode = document.getElementById('topoMode').value;
+      _speedLimit = parseInt(document.getElementById('speedLimit').value)||0;
+      _potMode = document.getElementById('potentialMode').value;
+      _potPolarity = document.getElementById('potPolarity')?.value || 'symmetric';
+      _collMode = document.getElementById('collisionMode').value;
+      _inelasticP = parseInt(document.getElementById('inelasticP').value)/100;
+      _promoMode = document.getElementById('promoMode').value;
+      rebuildPieceLists();
+      step();
+      applyDecay();
+      decayFlashMap();
+      applyDynamicPotential(1);
+      applyPieceGenPotential();
+      processSourcesSinks();
+      updateField();
+      flushCaptures();
+      sampleHistory(); samplePhase(en_last); sampleTrail(); checkEquilibrium();
+      if(document.getElementById('fxPulse')?.checked){
+        const spd=parseInt(document.getElementById('fxPulseSpeed')?.value||30)/100;
+        _pulsePhase=(_pulsePhase+spd*0.008)%1;
+      }
+      t++;
+      if(t % tpf === 0){
+        // Pace frame capture to real time at the target fps — see the
+        // section comment for why this is unavoidable with MediaRecorder.
+        const now = performance.now();
+        const wait = frameIntervalMs-(now-lastFrameTime);
+        if(wait>0) await new Promise(res=>setTimeout(res,wait));
+        lastFrameTime = performance.now();
+        const _fx = getSquareFxState({gradOn:opts.gradient, pulseOn:opts.pulse, rainbowOn:opts.rainbow});
+        if(opts.glyphs) drawGlyphModeFrame(vidCtx, vidCanvas, cellPx, opts, _fx);
+        else drawFlatModeFrame(vidCtx, vidCanvas, opts, _fx);
+        track.requestFrame();
+        frames++;
+        setVidStatusText(`tick ${t}${total?'/'+total:''} — ${frames} frames (~${(frames/fps).toFixed(1)}s)`);
+      } else if(t % 200 === 0){
+        await new Promise(res=>setTimeout(res,0)); // yield during the ticks-per-frame gap too, not just at capture points
+      }
+    }
+  } finally {
+    _videoRecording=false;
+    setVideoUIActive(false);
+    await new Promise(res=>{ recorder.onstop=res; recorder.stop(); });
+    track.stop();
+    const blob = new Blob(chunks, {type:'video/webm'});
+    const url = URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download=`chess-gas-${N}x${H}-video-${opts.glyphs?'glyph':'flat'}-step${stepCount}.webm`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setVidStatusText(`done — ${frames} frames, ${humanBytes(blob.size)} written.`);
+    // The recording ran silently alongside the (paused) live view — restore
+    // it now, matching loop()'s own draw-call sequence.
+    render();renderSourceSinksOverlay();renderField();renderFlowField();updateRight();
+    renderTrail();renderTrajectory();renderBodies();renderBloom();renderGlyphs();renderSparkleCursor();
+  }
+}
+setVideoUIActive(false);
 
 // about-modal and about-close are after the script tag - wire on DOMContentLoaded
 document.addEventListener('DOMContentLoaded',()=>{
@@ -8267,6 +8594,7 @@ wireSubTabs('io');
 </div>
 
 <!-- SPECTROGRAM BAR -->
+<div id="bottomStatusBar"><span id="bottomStatusText"></span></div>
 
 </body>
 </html>
