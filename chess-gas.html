@@ -100,6 +100,7 @@ input[type=range]{accent-color:var(--accent2);flex:1;min-width:0;height:10px}
 .mini-btn:hover{border-color:var(--border2);color:var(--accent)}
 .mini-btn:active{background:linear-gradient(to bottom,#CBDBEA 0%,#E4ECF4 100%);box-shadow:inset 0 1px 3px rgba(30,50,70,.2)}
 .mini-btn.on{border-color:var(--accent2);color:#fff;background:linear-gradient(to bottom,#3E86BE,#2E6DA4)}
+.mini-btn:disabled{opacity:0.4;cursor:not-allowed;pointer-events:none}
 .exp-fx-row{display:grid;grid-template-columns:1fr 36px 36px 36px;align-items:center;gap:4px;padding:2px 0}
 .exp-fx-row.hdr{color:var(--text3);font-size:var(--fs-sm);border-bottom:1px solid var(--border);padding-bottom:3px;margin-bottom:2px;text-align:center}
 .exp-fx-row.hdr span:first-child{text-align:left}
@@ -6321,6 +6322,14 @@ function applySizePreset(panel, unit, widthVal, dpi){
   const dpiRow=document.getElementById(`io-size-${panel}-dpi-row`);
   if(dpiRow) dpiRow.style.display = unit==='px' ? 'none' : '';
   updateSizeInfo(panel);
+  // Setting .value directly above doesn't fire input/change events, so
+  // anything listening for those (the video and batch-run estimate panels)
+  // never heard about it — refresh both explicitly rather than relying on
+  // events that were never going to happen. Both are no-ops if their
+  // panel's elements aren't on screen, so it's safe to call regardless of
+  // which panel this preset click was actually for.
+  if(typeof updateVidEstimate==='function') updateVidEstimate();
+  if(typeof updateRunEstimate==='function') updateRunEstimate();
 }
 function updateSizeInfo(panel){
   const info=document.getElementById(`io-size-${panel}-info`);
@@ -6357,6 +6366,8 @@ function initSizePanel(panel){
     const dpiRow=document.getElementById(`io-size-${panel}-dpi-row`);
     if(dpiRow) dpiRow.style.display = u==='px' ? 'none' : '';
     updateSizeInfo(panel);
+    if(typeof updateVidEstimate==='function') updateVidEstimate();
+    if(typeof updateRunEstimate==='function') updateRunEstimate();
   };
   ['in','cm','px'].forEach(u=>document.getElementById(`io-size-${panel}-unit-${u}`)?.addEventListener('click',()=>setUnit(u)));
   document.querySelectorAll(`.size-preset-print-${panel}`).forEach(btn=>{
@@ -6979,6 +6990,26 @@ function estimateVideoSize(){
 const VID_ALARM_MEGAPIXELS = 4_000_000;   // ~2000x2000-ish — the point where a canvas this size starts being a real risk on typical hardware
 const VID_ALARM_DURATION_S = 120;          // 2 minutes of output video
 const VID_ALARM_BYTES = 300*1024*1024;     // 300MB
+// Times an actual, real draw of one frame on a scratch canvas — not a
+// guess. The previous estimate assumed every frame costs exactly 1000/fps
+// ms, which only holds if drawing is fast enough to fit in that budget;
+// on a large board, compositing effects and (in glyph mode especially)
+// drawing thousands of individual piece glyphs can take far longer than
+// that, and the recorder doesn't drop frames to compensate — it just runs
+// slower, for real, which is exactly what was making the old estimate an
+// order of magnitude off. This measures the same functions the actual
+// recording loop calls, at the same size, so it reflects real per-frame
+// cost on whatever machine is actually running it.
+function measureFrameDrawMs(opts, pxW, pxH, cellPx, flat){
+  const testCanvas = document.createElement('canvas');
+  testCanvas.width = pxW; testCanvas.height = pxH;
+  const testCtx = testCanvas.getContext('2d');
+  const _fx = getSquareFxState({gradOn:opts.gradient, pulseOn:opts.pulse, rainbowOn:opts.rainbow});
+  const t0 = performance.now();
+  if(flat) drawFlatModeFrame(testCtx, testCanvas, opts, _fx);
+  else drawGlyphModeFrame(testCtx, testCanvas, cellPx, opts, _fx);
+  return performance.now()-t0;
+}
 function updateVidEstimate(){
   const modeEl=document.getElementById('io-vid-sum-mode'), resEl=document.getElementById('io-vid-sum-res'),
         lenEl=document.getElementById('io-vid-sum-len'), timeEl=document.getElementById('io-vid-sum-time'),
@@ -6987,29 +7018,38 @@ function updateVidEstimate(){
   const fps = Math.max(1, parseInt(document.getElementById('io-vid-fps')?.value)||30);
   const tpf = Math.max(1, parseInt(document.getElementById('io-vid-tpf')?.value)||1);
   const total = Math.max(0, parseInt(document.getElementById('io-vid-total')?.value)||0);
-  const {pxW,pxH,flat} = estimateVideoSize();
+  const opts = collectExportOpts('m');
+  const {pxW,pxH,cellPx,flat} = estimateVideoSize();
   const bitrate = VID_QUALITY_BITRATE[_vidQuality];
+  const idealFrameMs = 1000/fps;
+  const measuredMs = measureFrameDrawMs(opts, pxW, pxH, cellPx, flat);
+  const realFrameMs = Math.max(idealFrameMs, measuredMs);
+  const drawIsBottleneck = measuredMs > idealFrameMs;
 
   modeEl.textContent = flat ? 'flat (1px/cell)' : 'glyph (readable pieces)';
   resEl.textContent = `${pxW}×${pxH}px${flat ? ' — fixed to board size, VIDEO SIZE ignored' : ''}`;
 
   const warnings = [];
   if(pxW*pxH > VID_ALARM_MEGAPIXELS) warnings.push(`${pxW}×${pxH}px is a big canvas to redraw every frame — may stutter or fail on this machine`);
+  if(drawIsBottleneck) warnings.push(`drawing a frame here measured ~${measuredMs.toFixed(0)}ms — slower than the ${idealFrameMs.toFixed(0)}ms/frame budget at ${fps}fps, so recording will take noticeably longer than the video's own length, not the same as it`);
 
   if(total>0){
     const frames = Math.floor(total/tpf);
-    const durationS = frames/fps;
+    const durationS = frames/fps;              // video PLAYBACK length — always frames/fps, regardless of how long it took to record
+    const realRecordS = frames*realFrameMs/1000; // actual REAL TIME this will take to record, which can exceed durationS when drawing is the bottleneck
     const bytes = (bitrate/8)*durationS;
     lenEl.textContent = `${frames} frames, ${durationS.toFixed(1)}s of video`;
-    timeEl.textContent = `~${durationS.toFixed(0)}s of real time`;
-    sizeEl.textContent = `~${humanBytes(bytes)}`;
-    if(durationS > VID_ALARM_DURATION_S) warnings.push(`${(durationS/60).toFixed(1)} minutes of video is a lot to sit and record — recording takes real time, same length as the output`);
-    if(bytes > VID_ALARM_BYTES) warnings.push(`~${humanBytes(bytes)} is a large file at ${_vidQuality} quality — consider a lower quality or shorter run`);
+    timeEl.textContent = drawIsBottleneck
+      ? `~${realRecordS.toFixed(0)}s (drawing-limited, not fps-limited)`
+      : `~${realRecordS.toFixed(0)}s of real time`;
+    sizeEl.textContent = `≤~${humanBytes(bytes)} (target bitrate — actual is often smaller, depends how compressible the content is)`;
+    if(durationS > VID_ALARM_DURATION_S) warnings.push(`${(durationS/60).toFixed(1)} minutes of video is a lot to sit and record`);
+    if(bytes > VID_ALARM_BYTES) warnings.push(`could be up to ~${humanBytes(bytes)} at ${_vidQuality} quality — consider a lower quality or shorter run`);
   } else {
     lenEl.textContent = 'until stopped';
-    timeEl.textContent = 'open-ended';
+    timeEl.textContent = drawIsBottleneck ? `open-ended, and slower than realtime (~${measuredMs.toFixed(0)}ms/frame)` : 'open-ended';
     sizeEl.textContent = 'depends how long you let it run';
-    warnings.push(`"until stopped" has no built-in limit — recording time always equals video length, so this could run a long time before you remember to hit STOP`);
+    warnings.push(`"until stopped" has no built-in limit — this could run a long time before you remember to hit STOP`);
   }
   if(alarmEl){
     if(warnings.length){
