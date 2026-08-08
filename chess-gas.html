@@ -6449,6 +6449,18 @@ function collectExportMetadata(exportOpts){
 // board state is a real workflow), so everything here is keyed by panel
 // ('r' or 'v') rather than a single shared unit/state pair.
 const SIZE_DIM_WARN=16000, SIZE_DIM_BLOCK=30000;
+// MediaRecorder output for startVideoRecord() accumulates entirely in memory
+// (chunks array) until the recording finishes — there's no streaming/flush-
+// to-disk path. This is a real crash mechanism, not a theoretical one: it
+// presents as the whole tab crashing/reloading with no catchable JS error
+// (true OOM), confirmed against an actual reproduction, not just reasoning
+// about it. 1.5GB errs toward stopping early rather than precisely modeling
+// any particular platform's actual memory ceiling — recordings anywhere near
+// this size are the ones observed actually crashing. See startVideoRecord()
+// for the two places this is checked: a pre-flight estimate (only possible
+// when a fixed tick total was set) and a runtime running-total cutoff that
+// also covers the unbounded/manual-stop case the pre-flight check can't see.
+const VIDEO_MEM_BLOCK_BYTES = 1.5 * 1024 * 1024 * 1024;
 const _exportSizeUnit={r:'in', v:'in', m:'px'}; // 'in' | 'cm' | 'px' (px = screen presets: value is a direct long-edge pixel target, no DPI)
 function computeSizeExportDims(panel){
   const widthVal=parseFloat(document.getElementById(`io-size-${panel}-width`)?.value)||0;
@@ -7260,7 +7272,28 @@ async function startVideoRecord(){
   const total = Math.max(0, parseInt(document.getElementById('io-vid-total')?.value)||0);
   const bitrate = VID_QUALITY_BITRATE[_vidQuality];
   const {pxW,pxH,cellPx} = estimateVideoSize();
-  if(pxW>SIZE_DIM_BLOCK || pxH>SIZE_DIM_BLOCK){ setVidStatusText(`${pxW}×${pxH}px is too large — reduce VIDEO SIZE.`); return; }
+  // Video reuses the same pixel-dimension numbers as the one-off raster/
+  // vector export panels, but pays that cost on every single frame (canvas
+  // buffer + MediaRecorder encoding), not once — SIZE_DIM_BLOCK (30000px,
+  // ~3.6GB per frame buffer at that size) is far too permissive when it's
+  // being repeated hundreds of times a minute. SIZE_DIM_WARN (16000px,
+  // ~1GB/frame) is still large but a more defensible hard ceiling for video
+  // specifically — this is a second, independent memory-crash mechanism
+  // from the chunks-accumulation one below (large-canvas cost vs. long-
+  // duration accumulation), so fixing one doesn't cover the other.
+  if(pxW>SIZE_DIM_WARN || pxH>SIZE_DIM_WARN){ setVidStatusText(`${pxW}×${pxH}px is too large for video (repeated every frame) — reduce VIDEO SIZE.`); return; }
+  // Pre-flight version of the runtime cutoff below — only possible to check
+  // ahead of time when a fixed tick total was set (total>0); an unbounded
+  // manual-stop recording can't be size-estimated before it starts, which is
+  // exactly what the runtime cutoff (recordedBytes, below) exists to catch.
+  if(total>0){
+    const estSeconds = (total/tpf)/fps;
+    const estBytes = estSeconds * (bitrate/8);
+    if(estBytes > VIDEO_MEM_BLOCK_BYTES){
+      setVidStatusText(`Estimated ~${humanBytes(estBytes)} — likely to crash the tab (MediaRecorder output accumulates entirely in memory until the recording finishes). Reduce duration, fps, or quality.`);
+      return;
+    }
+  }
 
   pauseForExport();
 
@@ -7274,7 +7307,26 @@ async function startVideoRecord(){
   const mimeType = mimeCandidates.find(m=>MediaRecorder.isTypeSupported(m)) || 'video/webm';
   const recorder = new MediaRecorder(stream, {mimeType, videoBitsPerSecond:bitrate});
   const chunks=[];
-  recorder.ondataavailable = e=>{ if(e.data.size>0) chunks.push(e.data); };
+  // recordedBytes is the runtime counterpart of the pre-flight estimate
+  // above — covers the case a pre-flight check can't (total===0, i.e. an
+  // unbounded manual-stop recording, which has no known duration to estimate
+  // from ahead of time). Reuses the existing _videoStopRequested/finally
+  // shutdown path rather than a separate code path, so a cutoff-triggered
+  // stop still assembles and downloads whatever was captured, exactly like a
+  // user-clicked stop does.
+  let recordedBytes = 0;
+  let memCutoffTriggered = false;
+  recorder.ondataavailable = e=>{
+    if(e.data.size>0){
+      chunks.push(e.data);
+      recordedBytes += e.data.size;
+      if(recordedBytes > VIDEO_MEM_BLOCK_BYTES && !_videoStopRequested){
+        _videoStopRequested = true;
+        memCutoffTriggered = true;
+        setVidStatusText(`Stopped automatically at ${humanBytes(recordedBytes)} to avoid crashing the tab (recording data accumulates entirely in memory) — downloading what was captured.`);
+      }
+    }
+  };
 
   _videoRecording=true; _videoStopRequested=false;
   setVideoUIActive(true);
@@ -7326,7 +7378,9 @@ async function startVideoRecord(){
     a.href=url; a.download=`chess-gas-${N}x${H}-video-${opts.glyphs?'glyph':'flat'}-step${stepCount}.webm`;
     a.click();
     URL.revokeObjectURL(url);
-    setVidStatusText(`done — ${frames} frames, ${humanBytes(blob.size)} written.`);
+    setVidStatusText(memCutoffTriggered
+      ? `done — stopped early at ${humanBytes(blob.size)} to avoid a tab crash (${frames} frames). Reduce duration/fps/quality for a complete recording.`
+      : `done — ${frames} frames, ${humanBytes(blob.size)} written.`);
     // The recording ran silently alongside the (paused) live view — restore
     // it now, matching loop()'s own draw-call sequence.
     render();renderSourceSinksOverlay();renderField();renderFlowField();updateRight();
