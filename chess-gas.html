@@ -1959,8 +1959,9 @@ const PATTERNS = {
   },
 };
 
-function placeLayout(patternName, pieceSetName, colourName){
-  const density = parseInt(document.getElementById('density')?.value||40)/100;
+function placeLayout(patternName, pieceSetName, colourName, densityOverride){
+  const density = densityOverride!=null ? parseInt(densityOverride)/100
+                : parseInt(document.getElementById('density')?.value||40)/100;
   const pattern = PATTERNS[patternName] || PATTERNS.uniform;
   const arrange = COLOUR_ARRANGERS[colourName] || COLOUR_ARRANGERS.interleaved;
   const cells = pattern(density);
@@ -2294,7 +2295,7 @@ function step(){
     }
     if(coll==='explode'){
       // Annihilation plus area-of-effect: clears every piece within radius of impact
-      const radius = parseInt(document.getElementById('explodeRadius')?.value||2);
+      const radius = _explodeRadius;
       captureLog.push({tx,ty,attacker:piece,victim:captured,exploded:true});
       if(mfpDist){mfpDist[si2]=0;mfpDist[di]=0;}
       board[si2]=EMPTY; board[di]=EMPTY;
@@ -2352,8 +2353,8 @@ function step(){
 
   // ── standard capture / empty move ────────────────────────────────────────
   if(captured){
-    const bloomAmt = parseInt(document.getElementById('fxBloomAmt')?.value||20)/100;
-    const flashStr = document.getElementById('fxBloom')?.checked ? 1.0 + bloomAmt*2.0 : 1.0;
+    const bloomAmt = _fxBloomAmt;
+    const flashStr = _fxBloomOn ? 1.0 + bloomAmt*2.0 : 1.0;
     flashMap[di]=flashStr;
     captureLog.push({tx,ty,attacker:piece,victim:captured});recordBodyCapture(tx,ty,captured);
   }
@@ -2369,7 +2370,7 @@ function step(){
     if(promW||promB){
       if(_promoMode==='explode'){
         // Pawn explodes on promotion: clears AoE, pawn removed, no new piece
-        const radius=parseInt(document.getElementById('explodeRadius')?.value||2);
+        const radius=_explodeRadius;
         applyExplosionAt(tx, ty, radius);
         board[di]=EMPTY; // pawn gone
         whiteTurn=!whiteTurn; stepCount++; return;
@@ -3265,8 +3266,8 @@ let fieldMode='none',fieldOpacity=0.55,fieldScale=4,FN=1;
 let _fieldGenericRGB=null; // null = use each mode's default colour; set = override
 let fieldData=null,collisionField=null;
 
-function initFieldArrays(){
-  fieldScale=parseInt(document.getElementById('fieldRes').value);
+function initFieldArrays(fieldResOverride){
+  fieldScale=parseInt(fieldResOverride!=null ? fieldResOverride : document.getElementById('fieldRes').value);
   FN=Math.max(1,Math.ceil(N/fieldScale));
   fieldData=new Float32Array(FN*FN);
   collisionField=new Float32Array(FN*FN);
@@ -3986,12 +3987,14 @@ function flushCaptures(){
   for(const c of captureLog){
     capCount++;
     if(isWhite(c.attacker)) wCapturesMade++; else bCapturesMade++;
-    const div=document.createElement('div');div.className='cap-entry';
-    div.textContent=`${GLYPHS[c.attacker]}×${GLYPHS[c.victim]} (${c.tx},${c.ty})`;
-    div.style.color=isWhite(c.attacker)?`hsl(${wHue},50%,55%)`:`hsl(${bHue},50%,45%)`;
-    log.insertBefore(div,log.firstChild);
-    while(log.children.length>12) log.removeChild(log.lastChild);
-    setTimeout(()=>div.style.opacity='0.15',2000);
+    if(log){
+      const div=document.createElement('div');div.className='cap-entry';
+      div.textContent=`${GLYPHS[c.attacker]}×${GLYPHS[c.victim]} (${c.tx},${c.ty})`;
+      div.style.color=isWhite(c.attacker)?`hsl(${wHue},50%,55%)`:`hsl(${bHue},50%,45%)`;
+      log.insertBefore(div,log.firstChild);
+      while(log.children.length>12) log.removeChild(log.lastChild);
+      setTimeout(()=>div.style.opacity='0.15',2000);
+    }
     recordCapture(c.tx,c.ty);
   }
   captureLog=[];
@@ -4044,9 +4047,9 @@ document.getElementById('phaseCustomY')?.addEventListener('change', drawAllPhase
 
 // ── BOARD & PRESET WIRING ──────────────────────────────────────────────────
 let _boardBuf=null,_rainbowBuf=null,_flashBuf=null,_potentialBuf=null;
-function buildBoard(){
-  N=parseInt(document.getElementById('nsel').value);
-  H=parseInt(document.getElementById('nsel-h')?.value||N); // height; defaults to N (square)
+function buildBoard(cfg){
+  N=parseInt(cfg ? cfg.layout.nsel : document.getElementById('nsel').value);
+  H=parseInt(cfg ? (cfg.layout['nsel-h']||N) : (document.getElementById('nsel-h')?.value||N)); // height; defaults to N (square)
   const cap=N*H;
   // Reuse backing buffers across resets instead of reallocating every call —
   // reset() was the dominant O(N*H) cost at large board sizes (profiled:
@@ -4067,17 +4070,18 @@ function buildBoard(){
   captureLog=[];
   if(!_potentialBuf||_potentialBuf.length<cap)_potentialBuf=new Float32Array(cap);
   potentialMap=_potentialBuf.subarray(0,cap); potentialMap.fill(0);
-  const initVal = document.getElementById('initsel').value;
+  const initVal = cfg ? cfg.layout.initsel : document.getElementById('initsel').value;
   if(initVal==='custom'){
     placeLayout(
-      document.getElementById('layoutPattern')?.value||'uniform',
-      document.getElementById('layoutPieces')?.value||'all',
-      document.getElementById('layoutColour')?.value||'interleaved'
+      cfg ? (cfg.layout.layoutPattern||'uniform') : (document.getElementById('layoutPattern')?.value||'uniform'),
+      cfg ? (cfg.layout.layoutPieces||'all') : (document.getElementById('layoutPieces')?.value||'all'),
+      cfg ? (cfg.layout.layoutColour||'interleaved') : (document.getElementById('layoutColour')?.value||'interleaved'),
+      cfg ? cfg.layout.density : null
     );
   } else {
     INITS[initVal]();
   }
-  applyPotentialPreset();
+  applyPotentialPreset(cfg);
 }
 
 function updatePotentialDependentUI(){
@@ -4095,9 +4099,9 @@ function updatePotentialDependentUI(){
   }
 }
 
-function applyPotentialPreset(){
-  const v=document.getElementById('potPreset').value;
-  const p=parseInt(document.getElementById('pot-param').value)/100;
+function applyPotentialPreset(cfg){
+  const v = cfg ? (cfg.physics?.potPreset ?? 'none') : document.getElementById('potPreset').value;
+  const p = cfg ? parseInt(cfg.physics?.['pot-param'] ?? 0)/100 : parseInt(document.getElementById('pot-param').value)/100;
   if(POT_PRESETS[v]) POT_PRESETS[v](p);
 }
 
@@ -4343,7 +4347,183 @@ window.addEventListener('keydown',e=>{
 
 // ── MAIN LOOP ──────────────────────────────────────────────────────────────
 let running=false,rafId;
+// Set true only inside initHeadlessRun() (§3), for the duration of a headless
+// run. Lets checkEquilibrium() and sampleTrail() treat "sim is active" as
+// (running || _headlessMode) instead of just running, without ever touching
+// running itself — running also gates loop()'s own rAF-driven physics
+// advance (loop() is unconditionally scheduled from page load via
+// startLoop(), just gated internally by running), so a headless run setting
+// running=true directly was found (via an actual jsdom repro, not just
+// reasoning about it) to unpause the live loop concurrently — both loops
+// then raced on the same board/stepCount/cache vars. _headlessStopRequested
+// is the headless-only equivalent of "autostop fired, stop simulating" that
+// running otherwise serves for live mode.
+let _headlessMode=false, _headlessStopRequested=false;
 let _topoMode='bounded', _speedLimit=0, _potMode='dest', _collMode='capture', _inelasticP=0.5, _promoMode='random';
+// ── Physics-config cache, extended set ──────────────────────────────────────
+// These, plus the six above, are every physics-relevant field previously read
+// live from the DOM inside applyDecay/processSourcesSinks/applyPieceGenPotential/
+// applyDynamicPotential/checkEquilibrium/EQUIL_CHECKERS, plus two reads inside
+// step() itself (explosion radius) and one cosmetic-but-crash-risk read
+// (bloom flash strength) — see cacheLiveDOMPhysicsVars() below, the single
+// place all of these get populated from DOM in live mode, and
+// applyPhysicsConfig() for the headless equivalent.
+let _decayMode='none', _decayRate=0.002, _explodeRadius=2;
+let _ssRate=0.5, _ssSpawnType='pawn';
+let _pieceGenMode='none', _pieceGenStrength=0.5, _pieceGenRadius=3;
+let _dynPotMode='none', _dynFreq=0.0001, _dynAmp=0.5;
+let _equilAction='none', _equilConditions='caprate', _equilGate='or', _equilTimeSec=30,
+    _equilNTurns=10000, _equilSens=10, _equilNoCap=200, _equilPieceCount=8,
+    _equilMatPct=20, _equilPromotions=10;
+let _fxBloomAmt=0.2, _fxBloomOn=false;
+// Populates every per-tick physics cache var from the live DOM. Called once
+// per frame by loop(), and once per tick by runExportBatch()/startVideoRecord()
+// (which run their own tick loop outside rAF). Kept as one function specifically
+// so those three call sites can't drift out of sync with each other — before
+// this existed they each carried their own copy of the (shorter) original list.
+function cacheLiveDOMPhysicsVars(){
+  _topoMode = document.getElementById('topoMode').value;
+  _speedLimit = parseInt(document.getElementById('speedLimit').value)||0;
+  _potMode = document.getElementById('potentialMode').value;
+  _potPolarity = document.getElementById('potPolarity')?.value || 'symmetric';
+  _collMode = document.getElementById('collisionMode').value;
+  _inelasticP = parseInt(document.getElementById('inelasticP').value)/100;
+  _promoMode = document.getElementById('promoMode').value;
+  _decayMode = document.getElementById('decayMode')?.value || 'none';
+  _decayRate = parseInt(document.getElementById('decayRate')?.value||20)/10000;
+  _explodeRadius = parseInt(document.getElementById('explodeRadius')?.value||2);
+  _ssRate = parseInt(document.getElementById('ssRate')?.value||50)/100;
+  _ssSpawnType = document.getElementById('ssSpawnType')?.value||'pawn';
+  _pieceGenMode = document.getElementById('pieceGenMode')?.value || 'none';
+  _pieceGenStrength = parseInt(document.getElementById('pieceGenStrength')?.value||50)/100;
+  _pieceGenRadius = parseInt(document.getElementById('pieceGenRadius')?.value||3);
+  _dynPotMode = document.getElementById('dynPotMode')?.value||'none';
+  _dynFreq = parseInt(document.getElementById('dynFreq')?.value||10)/100000;
+  _dynAmp = parseInt(document.getElementById('dynAmp')?.value||50)/100;
+  _equilAction = document.getElementById('equilAction')?.value || 'none';
+  _equilConditions = document.getElementById('equilConditions')?.value||'caprate';
+  _equilGate = document.getElementById('equilGate')?.value || 'or';
+  _equilTimeSec = parseInt(document.getElementById('equilTimeSec')?.value || 30);
+  _equilNTurns = parseInt(document.getElementById('equilNTurns')?.value || 10000);
+  _equilSens = parseInt(document.getElementById('equilSens')?.value || 10);
+  _equilNoCap = parseInt(document.getElementById('equilNoCap')?.value || 200);
+  _equilPieceCount = parseInt(document.getElementById('equilPieceCount')?.value || 8);
+  _equilMatPct = parseInt(document.getElementById('equilMatPct')?.value || 20)/100;
+  _equilPromotions = parseInt(document.getElementById('equilPromotions')?.value || 10);
+  _fxBloomAmt = parseInt(document.getElementById('fxBloomAmt')?.value||20)/100;
+  _fxBloomOn = document.getElementById('fxBloom')?.checked || false;
+}
+
+// ── Headless physics-config surface ─────────────────────────────────────────
+// buildPhysicsConfig() / applyPhysicsConfig() are the DOM-free counterparts of
+// cacheLiveDOMPhysicsVars(): the former snapshots the current UI into a plain
+// object (for cross-validation against a headless run seeded with the same
+// values), the latter applies such an object to the cache vars once, without
+// touching the DOM at all. Together they cover every field the four physics
+// functions and checkEquilibrium/EQUIL_CHECKERS depend on, plus histInterval
+// (needed for the caprate/history-window checks) and moveMode2/betaSlider
+// (already read from SETTINGS_SCHEMA's 'physics' group, but note that unlike
+// the fields above, live mode updates those via their own 'change' listeners
+// rather than a per-frame cache — applyPhysicsConfig sets them once here since
+// there's no live listener to defer to headlessly).
+//
+// PHYSICS_CONFIG_GROUPS mirrors SETTINGS_SCHEMA's grouping so this doesn't
+// duplicate the id lists — 'display' is deliberately excluded (cosmetic,
+// doesn't affect simulation state) except histInterval, which SETTINGS_SCHEMA
+// doesn't cover at all (it's set from a lone 'change' listener, not the
+// settings-export system) and so is appended separately below.
+const PHYSICS_CONFIG_GROUPS = ['seed','layout','physics','autostop','plop'];
+
+function buildPhysicsConfig(){
+  const cfg = { histInterval };
+  for(const group of PHYSICS_CONFIG_GROUPS){
+    cfg[group] = {};
+    for(const entry of SETTINGS_SCHEMA[group]){
+      const id = typeof entry==='string' ? entry : entry.id;
+      const type = typeof entry==='string' ? 'value' : (entry.type||'value');
+      const el = document.getElementById(id);
+      if(!el) continue;
+      cfg[group][id] = type==='check' ? el.checked : el.value;
+    }
+  }
+  return cfg;
+}
+
+// Applies a buildPhysicsConfig()-shaped object to the cache vars, once, with
+// no DOM access. Mirrors cacheLiveDOMPhysicsVars()'s parsing exactly so a
+// config built from the live DOM and then applied headlessly reproduces the
+// same cache-var values (this equivalence is what §6's cross-validation
+// acceptance test checks).
+function applyPhysicsConfig(cfg){
+  const p = cfg.physics||{}, a = cfg.autostop||{}, pl = cfg.plop||{};
+  _topoMode = p.topoMode ?? 'bounded';
+  _speedLimit = parseInt(p.speedLimit)||0;
+  _potMode = p.potentialMode ?? 'dest';
+  _potPolarity = p.potPolarity ?? 'symmetric';
+  _collMode = p.collisionMode ?? 'capture';
+  _inelasticP = parseInt(p.inelasticP)/100;
+  _promoMode = p.promoMode ?? 'random';
+  _decayMode = p.decayMode ?? 'none';
+  _decayRate = parseInt(p.decayRate ?? 20)/10000;
+  _explodeRadius = parseInt(p.explodeRadius ?? 2);
+  _pieceGenMode = p.pieceGenMode ?? 'none';
+  _pieceGenStrength = parseInt(p.pieceGenStrength ?? 50)/100;
+  _pieceGenRadius = parseInt(p.pieceGenRadius ?? 3);
+  _dynPotMode = p.dynPotMode ?? 'none';
+  _dynFreq = parseInt(p.dynFreq ?? 10)/100000;
+  _dynAmp = parseInt(p.dynAmp ?? 50)/100;
+  _ssRate = parseInt(pl.ssRate ?? 50)/100;
+  _ssSpawnType = pl.ssSpawnType ?? 'pawn';
+  _equilAction = a.equilAction ?? 'none';
+  _equilConditions = a.equilConditions ?? 'caprate';
+  _equilGate = a.equilGate ?? 'or';
+  _equilTimeSec = parseInt(a.equilTimeSec ?? 30);
+  _equilNTurns = parseInt(a.equilNTurns ?? 10000);
+  _equilSens = parseInt(a.equilSens ?? 10);
+  _equilNoCap = parseInt(a.equilNoCap ?? 200);
+  _equilPieceCount = parseInt(a.equilPieceCount ?? 8);
+  _equilMatPct = parseInt(a.equilMatPct ?? 20)/100;
+  _equilPromotions = parseInt(a.equilPromotions ?? 10);
+  histInterval = parseInt(cfg.histInterval) || 500;
+  if(p.moveMode2!=null) moveMode = p.moveMode2;
+  if(p.betaSlider!=null) boltzBeta = parseFloat(p.betaSlider);
+  // Deliberately not applied here: fxBloom/fxBloomAmt (display-group,
+  // cosmetic — headless has no reason to pay for flash-intensity math it
+  // never renders) and seed/layout, which the headless *init* (§3) consumes
+  // directly to build the initial board rather than routing through the
+  // per-tick cache vars this function owns.
+}
+// ── Shared tick-advance sequence ────────────────────────────────────────────
+// Split in two (rather than one monolithic tick function) specifically
+// because loop() is NOT byte-identical to runExportBatch()/startVideoRecord()
+// even before this extraction: updateField()/flushCaptures() run
+// unconditionally every frame in loop() (including while paused, so the UI
+// stays current), and at sub-1 mpf, loop() runs decay/sampling on every
+// rendered frame even on frames where step() itself didn't fire. Folding
+// updateField()/flushCaptures() into a running-gated shared function would
+// silently stop them running while paused — a regression, not a refactor.
+// So those two calls stay individual at each site (their existing positions
+// already match across all four call sites); only the genuinely-identical
+// physics/decay/sample portions are shared here.
+//
+// updateField() is deliberately NOT part of either function despite sitting
+// in the same call sequence at every site: traced its only two read sites
+// (both pure canvas/export-raster colour computation) and confirmed
+// fieldData is never read by step()/movement/potential logic — it's
+// render-data prep that happens to be sequenced here, not physics state.
+// Headless (§3) skips calling it entirely.
+function tickAdvancePhysics(stepsThisFrame){
+  rebuildPieceLists();
+  for(let i=0;i<stepsThisFrame;i++) step();
+  applyDecay();
+  decayFlashMap();
+  applyDynamicPotential(stepsThisFrame);
+  applyPieceGenPotential();
+  processSourcesSinks();
+}
+function tickAdvanceSample(){
+  sampleHistory(); samplePhase(en_last); sampleTrail(); checkEquilibrium();
+}
 let _frameSkipCounter=0;
 let _stepsThisFrame=1; // how many simulation steps actually ran this animation frame (tracks mpf)
 // Whether the DATA tab's content can actually be seen right now — on phone
@@ -4362,31 +4542,24 @@ function loop(){
     const mpfRaw=document.getElementById('mpf').value;
     const mpfNum=parseFloat(mpfRaw);
     // Cache physics mode settings per frame
-    _topoMode = document.getElementById('topoMode').value;
-    _speedLimit = parseInt(document.getElementById('speedLimit').value)||0;
-    _potMode = document.getElementById('potentialMode').value;
-    _potPolarity = document.getElementById('potPolarity')?.value || 'symmetric';
-    _collMode = document.getElementById('collisionMode').value;
-    _inelasticP = parseInt(document.getElementById('inelasticP').value)/100;
-    _promoMode = document.getElementById('promoMode').value;
-    rebuildPieceLists();
+    cacheLiveDOMPhysicsVars();
+    let stepsThisFrame;
     if(mpfNum<1){
       // sub-1x speed: only step once every (1/mpfNum) frames
       const skipEvery=Math.round(1/mpfNum);
       _frameSkipCounter++;
-      if(_frameSkipCounter>=skipEvery){ _frameSkipCounter=0; step(); _stepsThisFrame=1; }
-      else { _stepsThisFrame=0; }
+      if(_frameSkipCounter>=skipEvery){ _frameSkipCounter=0; stepsThisFrame=1; }
+      else { stepsThisFrame=0; }
     } else {
-      const mpf=Math.round(mpfNum);
-      for(let i=0;i<mpf;i++) step();
-      _stepsThisFrame=mpf;
+      stepsThisFrame=Math.round(mpfNum);
     }
+    _stepsThisFrame=stepsThisFrame;
+    // tickAdvancePhysics() runs rebuildPieceLists()+step()×stepsThisFrame even
+    // when stepsThisFrame===0 (a no-op step loop) — matches original behaviour,
+    // where rebuildPieceLists()/applyDecay()/etc all ran every frame while
+    // running regardless of whether a step actually fired that frame.
+    tickAdvancePhysics(stepsThisFrame);
   }
-  if(running) applyDecay();
-  if(running) decayFlashMap();
-  if(running) applyDynamicPotential(_stepsThisFrame);
-  if(running) applyPieceGenPotential();
-  if(running) processSourcesSinks();
   updateField();render();renderSourceSinksOverlay();renderField();renderFlowField();
   // advance pulse phase
   if(document.getElementById('fxPulse')?.checked){
@@ -4394,7 +4567,7 @@ function loop(){
     _pulsePhase=(_pulsePhase+spd*0.008)%1;
   }
   flushCaptures();updateRight();
-  if(running){sampleHistory();samplePhase(en_last);sampleTrail();checkEquilibrium();}
+  if(running){tickAdvanceSample();}
   if(isDataTabVisible()){
     drawHistoryGraphs();drawPhasePortrait();drawPawnFraction();drawBottomSpectrogram();drawMiniSparks();
   }
@@ -4536,7 +4709,8 @@ function sampleHistory(){
 
   // update range label
   const kmv = (stepCount/1000).toFixed(1);
-  document.getElementById('hist-range').textContent = kmv + ' kmoves';
+  const rangeEl = document.getElementById('hist-range');
+  if(rangeEl) rangeEl.textContent = kmv + ' kmoves';
 }
 
 function drawHistoryGraphs(){
@@ -4622,7 +4796,8 @@ function drawHistoryGraphs(){
 function clearHistory(){
   for(const s of Object.values(HIST_SERIES)){ s.buf.fill(0); s.pos=0; s.count=0; }
   histLastStep=0;
-  document.getElementById('hist-range').textContent='— kmoves';
+  const rangeEl = document.getElementById('hist-range');
+  if(rangeEl) rangeEl.textContent='— kmoves';
 }
 
 document.getElementById('hist-interval').addEventListener('change',()=>{
@@ -4965,7 +5140,7 @@ let trailLastMove = 0;
 
 function sampleTrail(){
   const mode = document.getElementById('trailMode').value;
-  if(mode !== 'sample' || !running) return;
+  if(mode !== 'sample' || (!running && !_headlessMode)) return;
   const interval = parseInt(document.getElementById('trailLen').value);
   if(stepCount - trailLastMove < interval) return;
   trailLastMove = stepCount;
@@ -5269,8 +5444,8 @@ function initSourceSinks(){ sourceSinkMap=new Int8Array(N*H); ssLastStep=0; }
 function processSourcesSinks(){
   if(!sourceSinkMap) return;
   // spawnRate slider: 1-100 → probability per frame per cell (0.02..0.9)
-  const rate = parseInt(document.getElementById('ssRate')?.value||50)/100;
-  const spawnType=document.getElementById('ssSpawnType')?.value||'pawn';
+  const rate = _ssRate;
+  const spawnType = _ssSpawnType;
   const ALL_W=[W_PAWN,W_KNIGHT,W_BISHOP,W_ROOK,W_QUEEN];
   const ALL_B=[B_PAWN,B_KNIGHT,B_BISHOP,B_ROOK,B_QUEEN];
   function pieceFromType(t,white){
@@ -5319,9 +5494,9 @@ function decayFlashMap(){
   for(let i=0;i<N*H;i++) if(flashMap[i]>0) flashMap[i]=Math.max(0,flashMap[i]-0.05);
 }
 function applyDecay(){
-  const mode = document.getElementById('decayMode')?.value || 'none';
+  const mode = _decayMode;
   if(mode==='none') return;
-  const rate = parseInt(document.getElementById('decayRate')?.value||20)/10000; // 0.01%..2%
+  const rate = _decayRate; // 0.01%..2%
   for(let i=0;i<N*H;i++){
     const p=board[i]; if(!p) continue;
     if(random()>=rate) continue;
@@ -5342,7 +5517,7 @@ function applyDecay(){
       flashMap[i]=Math.max(flashMap[i]||0, 0.9);
       const coll=_collMode;
       if(coll==='explode'){
-        const radius=parseInt(document.getElementById('explodeRadius')?.value||2);
+        const radius=_explodeRadius;
         applyExplosionAt(x, y, radius);
       } else {
         // capture/elastic/inelastic/annihilate/exchange/pacifist/convert/wololo all
@@ -5354,7 +5529,7 @@ function applyDecay(){
 }
 
 function applyPieceGenPotential(){
-  const mode = document.getElementById('pieceGenMode')?.value || 'none';
+  const mode = _pieceGenMode;
   if(mode==='none'){
     // if we previously added a halo, remove its last contribution before clearing
     if(pieceGenMap){ for(let i=0;i<pieceGenMap.length;i++) potentialMap[i]-=pieceGenMap[i]; }
@@ -5367,8 +5542,8 @@ function applyPieceGenPotential(){
     // remove last frame's contribution before computing this frame's fresh halo
     for(let i=0;i<pieceGenMap.length;i++) potentialMap[i]-=pieceGenMap[i];
   }
-  const strength = parseInt(document.getElementById('pieceGenStrength')?.value||50)/100;
-  const radius = parseInt(document.getElementById('pieceGenRadius')?.value||3);
+  const strength = _pieceGenStrength;
+  const radius = _pieceGenRadius;
   pieceGenMap.fill(0); // recompute fresh each frame — no memory, halo moves with the piece
   const r2 = radius*radius;
   const span = Math.ceil(radius*2.2); // splat extent before the Gaussian is negligible
@@ -5391,10 +5566,10 @@ function applyPieceGenPotential(){
 }
 
 function applyDynamicPotential(stepsThisFrame){
-  const mode=document.getElementById('dynPotMode')?.value||'none';
+  const mode=_dynPotMode;
   if(mode==='none') return;
-  const freq=parseInt(document.getElementById('dynFreq')?.value||10)/100000;
-  const amp=parseInt(document.getElementById('dynAmp')?.value||50)/100;
+  const freq=_dynFreq;
+  const amp=_dynAmp;
   dynPhase+=freq*(stepsThisFrame||1);
   const t=dynPhase;
   if(!dynPotBase) savePotBase();
@@ -6893,26 +7068,15 @@ async function runExportBatch(){
   let t=0, captured=0;
   try{
     while(_exportRunActive && !_exportRunStopRequested && (total===0 || t<total)){
-      // Per-tick simulation advance — the same sequence loop() runs minus
-      // the draw calls (see the section comment above for why this is
-      // duplicated rather than shared).
-      _topoMode = document.getElementById('topoMode').value;
-      _speedLimit = parseInt(document.getElementById('speedLimit').value)||0;
-      _potMode = document.getElementById('potentialMode').value;
-      _potPolarity = document.getElementById('potPolarity')?.value || 'symmetric';
-      _collMode = document.getElementById('collisionMode').value;
-      _inelasticP = parseInt(document.getElementById('inelasticP').value)/100;
-      _promoMode = document.getElementById('promoMode').value;
-      rebuildPieceLists();
-      step();
-      applyDecay();
-      decayFlashMap();
-      applyDynamicPotential(1);
-      applyPieceGenPotential();
-      processSourcesSinks();
+      // Per-tick simulation advance — now the shared tickAdvancePhysics()/
+      // tickAdvanceSample() functions (§2 extraction), same content and
+      // order as before, just no longer a hand-copied duplicate of loop()'s
+      // sequence — see the section comment above for background.
+      cacheLiveDOMPhysicsVars();
+      tickAdvancePhysics(1);
       updateField();
       flushCaptures();
-      sampleHistory(); samplePhase(en_last); sampleTrail(); checkEquilibrium();
+      tickAdvanceSample();
       if(document.getElementById('fxPulse')?.checked){
         const spd=parseInt(document.getElementById('fxPulseSpeed')?.value||30)/100;
         _pulsePhase=(_pulsePhase+spd*0.008)%1;
@@ -7121,25 +7285,14 @@ async function startVideoRecord(){
   let t=0, frames=0;
   try{
     while(_videoRecording && !_videoStopRequested && (total===0 || t<total)){
-      // Per-tick simulation advance — same sequence as the batch export
-      // run's loop, duplicated for the same reason (see that section).
-      _topoMode = document.getElementById('topoMode').value;
-      _speedLimit = parseInt(document.getElementById('speedLimit').value)||0;
-      _potMode = document.getElementById('potentialMode').value;
-      _potPolarity = document.getElementById('potPolarity')?.value || 'symmetric';
-      _collMode = document.getElementById('collisionMode').value;
-      _inelasticP = parseInt(document.getElementById('inelasticP').value)/100;
-      _promoMode = document.getElementById('promoMode').value;
-      rebuildPieceLists();
-      step();
-      applyDecay();
-      decayFlashMap();
-      applyDynamicPotential(1);
-      applyPieceGenPotential();
-      processSourcesSinks();
+      // Per-tick simulation advance — now the shared tickAdvancePhysics()/
+      // tickAdvanceSample() functions (§2 extraction), same sequence as
+      // the batch export run's loop (see that section for background).
+      cacheLiveDOMPhysicsVars();
+      tickAdvancePhysics(1);
       updateField();
       flushCaptures();
-      sampleHistory(); samplePhase(en_last); sampleTrail(); checkEquilibrium();
+      tickAdvanceSample();
       if(document.getElementById('fxPulse')?.checked){
         const spd=parseInt(document.getElementById('fxPulseSpeed')?.value||30)/100;
         _pulsePhase=(_pulsePhase+spd*0.008)%1;
@@ -7592,6 +7745,11 @@ function doJitter(){
 const EQUIL_WINDOW = 40;
 const EQUIL_MIN_STEPS = 300;
 let equilInitialMat = 0;     // total material at reset
+// Set by checkEquilibrium() whenever it triggers, to the subset of
+// configured conditions that evaluated true at that moment — used by the
+// headless batch runner (§3) to classify how/why a run ended. Doesn't affect
+// live behaviour at all; nothing else reads it.
+let _lastEquilTriggeredConditions = [];
 
 // Each checker returns true/false/undefined (undefined = "not enough data yet, skip").
 // Ordered by general usefulness - time is the default (speed-independent,
@@ -7599,11 +7757,11 @@ let equilInitialMat = 0;     // total material at reset
 // a lot once you're cycling configs unattended via randomise-on-reset).
 const EQUIL_CHECKERS = {
   time(){
-    const needed = parseInt(document.getElementById('equilTimeSec')?.value || 30) * 1000;
+    const needed = _equilTimeSec * 1000;
     return (Date.now() - runStartTime) >= needed;
   },
   nturns(){
-    const needed = parseInt(document.getElementById('equilNTurns')?.value || 10000);
+    const needed = _equilNTurns;
     return stepCount >= needed;
   },
   onecolor(){
@@ -7619,7 +7777,7 @@ const EQUIL_CHECKERS = {
   caprate(){
     const s = HIST_SERIES.capRate;
     if(!s || s.count < EQUIL_WINDOW) return undefined;
-    const sens = parseInt(document.getElementById('equilSens')?.value || 10);
+    const sens = _equilSens;
     const threshold = sens / 20;
     let capSum = 0;
     for(let i = 0; i < EQUIL_WINDOW; i++)
@@ -7635,11 +7793,11 @@ const EQUIL_CHECKERS = {
     return meanCap < threshold && matVar/EQUIL_WINDOW < threshold;
   },
   nocap(){
-    const needed = parseInt(document.getElementById('equilNoCap')?.value || 200);
+    const needed = _equilNoCap;
     return equilNoCaptureCount >= needed;
   },
   pieceCountBelow(){
-    const needed = parseInt(document.getElementById('equilPieceCount')?.value || 8);
+    const needed = _equilPieceCount;
     let cur=0;
     for(let i=0;i<N*H;i++) if(board[i]) cur++;
     return cur <= needed;
@@ -7649,26 +7807,26 @@ const EQUIL_CHECKERS = {
     // settings strings/presets), this is occupied-cell count, not
     // chess-value - the UI labels it "occupancy" to avoid confusion with
     // the value-weighted stats in the MATERIAL panel.
-    const pct = parseInt(document.getElementById('equilMatPct')?.value || 20)/100;
+    const pct = _equilMatPct;
     let cur=0;
     for(let i=0;i<N*H;i++) if(board[i]) cur++;
     if(equilInitialMat <= 0) return undefined;
     return cur <= equilInitialMat * pct;
   },
   promotions(){
-    const needed = parseInt(document.getElementById('equilPromotions')?.value || 10);
+    const needed = _equilPromotions;
     return promotionCount >= needed;
   },
 };
 
 function checkEquilibrium(){
-  const action = document.getElementById('equilAction')?.value || 'none';
+  const action = _equilAction;
   if(action === 'none') return;
-  if(!running) return;
+  if(!running && !_headlessMode) return;
   if(stepCount < EQUIL_MIN_STEPS) return;
 
-  const conditions = (document.getElementById('equilConditions')?.value||'caprate').split(',').filter(Boolean);
-  const gate = document.getElementById('equilGate')?.value || 'or';
+  const conditions = _equilConditions.split(',').filter(Boolean);
+  const gate = _equilGate;
 
   const results = conditions.map(c => EQUIL_CHECKERS[c] ? EQUIL_CHECKERS[c]() : false);
   // undefined ("not enough data") never satisfies AND, and never counts toward OR
@@ -7680,8 +7838,17 @@ function checkEquilibrium(){
   }
 
   if(triggered){
-    if(action === 'pause' && running){
-      togglePlay();
+    _lastEquilTriggeredConditions = conditions.filter((c,i) => results[i] === true);
+    if(action === 'pause' && (running || _headlessMode)){
+      // Headless sets _headlessStopRequested instead of running=false —
+      // touching the shared running flag here would also unpause the live
+      // rAF loop (see the _headlessMode declaration comment for why) even
+      // though it was never true to begin with for a headless-only run.
+      // togglePlay() also writes to the live playBtn DOM element, which
+      // would work fine in-tab but is a pointless/confusing visual side
+      // effect on whatever page happens to be open during a batch run.
+      if(_headlessMode) _headlessStopRequested = true;
+      else togglePlay();
     } else if(action === 'reset'){
       if(document.getElementById('randomiseOnReset')?.checked){
         const pct = parseInt(document.getElementById('randomChangePct')?.value || 100);
@@ -7693,6 +7860,224 @@ function checkEquilibrium(){
       zoom=savedZoom; panX=savedPanX; panY=savedPanY;
     }
   }
+}
+
+// ── Headless batch runner (§3) ──────────────────────────────────────────────
+// initHeadlessRun() mirrors reset()'s state setup function-for-function, but:
+//  - takes seed/cfg as arguments instead of reading the DOM (seedForRun()
+//    already supported a forcedSeed param safely; buildBoard()/
+//    applyPotentialPreset()/placeLayout()/initFieldArrays() were extended
+//    above to take the same kind of override)
+//  - skips the DOM/render-only parts of reset() (view/zoom reset,
+//    renderCurrentSetup())
+//  - computes equilInitialMat synchronously instead of via reset()'s
+//    setTimeout(...,0) — in a tight synchronous loop that only yields every
+//    200 ticks (see runHeadlessLoop below), the deferred version would stay
+//    stuck at 0 — and 0 reads as "not enough data yet" to the material
+//    checker — for at least the first yield point, silently disabling that
+//    autostop condition for a stretch of the run (§1 finding).
+//  - sets _headlessMode=true (NOT running=true — see the _headlessMode
+//    declaration comment: running also gates loop()'s already-scheduled rAF
+//    callback, so setting it here would concurrently unpause the live sim).
+//    checkEquilibrium()/sampleTrail() were updated to treat
+//    (running || _headlessMode) as "sim is active" instead of just running.
+// Refuses to start if the live sim is already playing — with both loops
+// mutating the same global board/cache-var state and no isolation between
+// them, running headless and live concurrently corrupts both (reproduced
+// this directly: cache vars got silently overwritten mid-run, autostop
+// stopped firing). Pause first, then run headless.
+// initFieldArrays() is still called, with a fixed coarse default (4) rather
+// than skipped outright: collisionField/FN/fieldScale are read by
+// recordCapture() (called from flushCaptures() on every capture, not just by
+// render code) — skipping this entirely would throw on a run's first capture.
+// The actual field-resolution *value* doesn't matter here since nothing
+// headless computes or logs ever reads fieldData/collisionField back
+// (confirmed in §2: their only consumer is updateField(), which headless
+// never calls) — this call exists purely so the arrays exist and are sized
+// against the current N/H, not to produce a meaningful field.
+function initHeadlessRun(seed, cfg){
+  if(running){
+    throw new Error("Can't start a headless run while the live simulation is playing — pause it first (shared global state, no isolation between the two).");
+  }
+  _headlessMode = true;
+  _headlessStopRequested = false;
+  seedForRun(seed);
+  applyPhysicsConfig(cfg);
+  if(_equilAction === 'reset'){
+    _headlessMode = false;
+    throw new Error("Headless runs don't support equilAction 'reset' (only 'pause' or 'none' are supported) — see chess-gas-v1_2b-tasks.md §3.");
+  }
+  buildBoard(cfg);
+  initFieldArrays(4);
+  for(const sp of Object.values(SPARKS)){sp.buf.fill(0);sp.pos=0;}
+  capCount=0;lastCapStep=0;wCapturesMade=0;bCapturesMade=0;promotionCount=0;runStartTime=Date.now();
+  clearHistory();
+  initSpectro();
+  clearTrail(); capturePositions=[]; initTrailBoard();
+  equilNoCaptureCount=0;
+  equilInitialMat=0; for(let i=0;i<N*H;i++) if(board[i]) equilInitialMat++;
+  phaseBuf.pos=0; phaseBuf.count=0; phaseLastStep=0;
+  initMFP();  initSourceSinks();
+  dynPotBase=null; dynPhase=0;
+  pieceGenMap=null;
+  selectedCell=null; trajectoryBuf=[];
+  flowField=null;
+}
+
+// Runs one headless simulation to completion (autostop trigger or
+// stepBudget, whichever comes first) and returns a flat milestone/outcome
+// record. Uses the same per-tick sequence as runExportBatch()/
+// startVideoRecord() (tickAdvancePhysics(1) + tickAdvanceSample(), no
+// updateField() — see §2), and the same yield-every-200-ticks cadence as
+// runExportBatch() (the established precedent for this execution context —
+// plain in-tab loop, not a Worker/Node process — see §3 notes) so a long
+// headless run doesn't freeze the tab it's running in.
+//
+// finalClassification is a best-effort label, not a hard specification —
+// the task list names the four categories (extinction/frozen/autostop-other/
+// timeout) without defining exactly which configured conditions map to
+// 'frozen' vs 'autostop-other'. Current mapping: 'onecolor' firing (or one
+// colour going extinct naturally, even if 'onecolor' wasn't a configured
+// condition) -> 'extinction'; 'caprate'/'nocap' firing -> 'frozen' (the sim
+// genuinely stopped changing); any other configured condition -> 'autostop-
+// other'; stepBudget exhausted with nothing triggered -> 'timeout'. Flag if
+// you want different groupings — easy to adjust, this is just a first pass.
+async function runHeadlessLoop(stepBudget){
+  const startMs = Date.now();
+  const record = {
+    firstCaptureStep: null,
+    firstPromotionStep: null,
+    largestCascade: 0,
+    largestCascadeStep: null,
+    firstExtinctionStep: null,
+    autostopStep: null,
+    autostopConditions: null,
+    finalClassification: null,
+    finalStats: null,
+  };
+  let sawOneColor = false;
+  let t = 0;
+  while(!_headlessStopRequested && t < stepBudget){
+    const promoBefore = promotionCount;
+    tickAdvancePhysics(1);
+    const stepCaptures = captureLog.length;
+    if(stepCaptures > 0 && record.firstCaptureStep===null) record.firstCaptureStep = stepCount;
+    if(stepCaptures > record.largestCascade){ record.largestCascade = stepCaptures; record.largestCascadeStep = stepCount; }
+    flushCaptures();
+    if(promotionCount > promoBefore && record.firstPromotionStep===null) record.firstPromotionStep = stepCount;
+    if(!sawOneColor && EQUIL_CHECKERS.onecolor()){ sawOneColor = true; record.firstExtinctionStep = stepCount; }
+    tickAdvanceSample();
+    if(_headlessStopRequested){
+      record.autostopStep = stepCount;
+      record.autostopConditions = _lastEquilTriggeredConditions.slice();
+    }
+    t++;
+    if(t % 200 === 0) await new Promise(res=>setTimeout(res,0));
+  }
+  if(record.autostopStep !== null){
+    const conds = record.autostopConditions;
+    if(conds.includes('onecolor')) record.finalClassification = 'extinction';
+    else if(conds.some(c => c==='caprate' || c==='nocap')) record.finalClassification = 'frozen';
+    else record.finalClassification = 'autostop-other';
+  } else if(sawOneColor){
+    record.finalClassification = 'extinction';
+  } else {
+    record.finalClassification = 'timeout';
+  }
+  let finalPieces = 0;
+  for(let i=0;i<N*H;i++) if(board[i]) finalPieces++;
+  const elapsedMs = Date.now() - startMs;
+  // totalCaptures = wCapturesMade+bCapturesMade, NOT the module-level
+  // capCount — found via the §6 cross-validation test: capCount isn't a
+  // running total in this codebase, it's a rolling ~20-step window counter
+  // that a live-only sparkline-update function resets periodically
+  // (`if(stepCount-lastCapStep>=20){capCount=0;...}`). Headless never calls
+  // that function, so capCount would silently just accumulate forever and
+  // look like a plausible total — it isn't one. wCapturesMade/bCapturesMade
+  // have no such reset anywhere and are the real cumulative counts.
+  record.finalStats = {
+    steps: stepCount,
+    totalCaptures: wCapturesMade + bCapturesMade,
+    wCapturesMade, bCapturesMade, promotionCount,
+    pieces: finalPieces,
+    elapsedMs,
+    stepsPerSec: stepCount>0 && elapsedMs>0 ? Math.round(stepCount/(elapsedMs/1000)) : 0,
+  };
+  _headlessMode = false;
+  return record;
+}
+
+// Convenience entry point: init + run in one call.
+async function runHeadlessOnce(seed, cfg, stepBudget){
+  initHeadlessRun(seed, cfg);
+  return runHeadlessLoop(stepBudget);
+}
+
+// Writes a buildPhysicsConfig()-shaped object back into the live DOM —
+// the inverse of buildPhysicsConfig(), used only to set up a config-matched
+// live-mode comparison run (measureLiveVsHeadlessSpeed(), and manual
+// cross-validation testing). Not used by applyPhysicsConfig()/headless
+// itself, which never touches the DOM at all.
+function applyConfigToDOM(cfg){
+  for(const group of PHYSICS_CONFIG_GROUPS){
+    for(const entry of SETTINGS_SCHEMA[group]){
+      const id = typeof entry==='string' ? entry : entry.id;
+      const type = typeof entry==='string' ? 'value' : (entry.type||'value');
+      const el = document.getElementById(id);
+      if(!el || !(id in (cfg[group]||{}))) continue;
+      if(type==='check') el.checked = cfg[group][id];
+      else el.value = cfg[group][id];
+    }
+  }
+  const histEl = document.getElementById('hist-interval');
+  if(histEl) histEl.value = cfg.histInterval;
+}
+
+// Dev-facing (console-callable, no UI surface per §4's out-of-scope note) —
+// measures headless throughput against two different "live" baselines for
+// the same seed/config/step count, per §6's speedup acceptance criterion:
+//   - liveRafThrottledStepsPerSec: mpf × ~60fps, the rate a user actually
+//     experiences in the live UI, capped by the browser's frame rate
+//     regardless of machine speed (theoretical from config, not measured —
+//     rAF's cap is external to this page's code).
+//   - liveRawStepsPerSec: the real live loop() function (unmodified, full
+//     render/DOM-recache cost included) called back-to-back synchronously
+//     with no rAF gating at all — answers "is skipping render actually
+//     what makes headless faster, independent of the rAF cap".
+// Mutates live DOM state and calls reset()/loop() for the liveRaw
+// measurement (needs the real DOM-reading code paths under real test, not
+// headless's config-driven substitutes) — call this on a throwaway/dev page
+// state, not mid-session.
+async function measureLiveVsHeadlessSpeed(cfg, steps){
+  // Headless
+  const hRecord = await runHeadlessOnce('speedtest-seed', cfg, steps);
+  const headlessStepsPerSec = hRecord.finalStats.stepsPerSec;
+
+  // Live raw (uncapped, full loop() including render)
+  applyConfigToDOM(cfg);
+  const mpfEl = document.getElementById('mpf');
+  if(mpfEl) mpfEl.value = '1';
+  reset(false, 'speedtest-seed');
+  running = true;
+  const liveStart = Date.now();
+  for(let i=0;i<steps;i++) loop();
+  const liveElapsedMs = Date.now() - liveStart;
+  running = false;
+  const liveRawStepsPerSec = liveElapsedMs>0 ? Math.round(steps/(liveElapsedMs/1000)) : 0;
+
+  // Live rAF-throttled (theoretical, config-based — not measured, rAF's cap
+  // isn't something this page's code controls)
+  const mpfVal = parseFloat(document.getElementById('mpf')?.value || '1');
+  const liveRafThrottledStepsPerSec = Math.round(Math.max(mpfVal,0) * 60);
+
+  return {
+    steps,
+    headlessStepsPerSec,
+    liveRawStepsPerSec,
+    liveRafThrottledStepsPerSec,
+    speedupVsRaw: liveRawStepsPerSec>0 ? +(headlessStepsPerSec/liveRawStepsPerSec).toFixed(1) : null,
+    speedupVsRafThrottled: liveRafThrottledStepsPerSec>0 ? +(headlessStepsPerSec/liveRafThrottledStepsPerSec).toFixed(1) : null,
+  };
 }
 
 // called from step() when a capture happens
