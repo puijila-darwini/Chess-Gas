@@ -58,6 +58,17 @@ html.ph-mode body{
 .tb-btn:disabled{opacity:0.4;cursor:not-allowed;pointer-events:none}
 .tb-btn.danger{border-color:#c0392b;color:#fff;background:linear-gradient(to bottom,#e0564a,#c0392b);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 1px 1px rgba(30,50,70,.08)}
 .tb-btn.danger:hover{background:linear-gradient(to bottom,#e8695e,#a8332a)}
+/* Mode-switch button (sandbox <-> experiments) — deliberately NOT styled
+   like the other panel-toggle buttons: this swaps the whole workspace, not
+   a side panel, so it needs its own visual identity. Uses the interface's
+   own accent blue rather than an unrelated colour. */
+.tb-btn.mode-switch{border-color:var(--border2);color:#fff;background:linear-gradient(to bottom,var(--accent2),var(--accent));box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 1px 1px rgba(30,50,70,.08)}
+.tb-btn.mode-switch:hover{background:linear-gradient(to bottom,#3E7FBE,var(--accent2))}
+.tb-btn.mode-switch.on{background:linear-gradient(to bottom,var(--accent),#082A47)}
+.ph-tab.mode-switch{color:var(--accent2);font-weight:700;border-top:2px solid var(--accent2)}
+.ph-tab.mode-switch svg{stroke:var(--accent2)}
+.ph-tab.mode-switch.active{color:#fff;background:var(--accent2);border-radius:8px 8px 0 0;border-top:2px solid var(--accent2)}
+.ph-tab.mode-switch.active svg{stroke:#fff}
 #bottomStatusBar{
   flex-shrink:0;display:none;padding:4px 10px;font-size:var(--fs-sm);color:var(--accent2);
   background:var(--bg2);border-top:1px solid var(--border);white-space:nowrap;overflow:hidden;text-overflow:ellipsis
@@ -248,7 +259,8 @@ body[data-layout="phone"] #mpf,
 body[data-layout="phone"] #leftPanelBtn,
 body[data-layout="phone"] #rightPanelBtn,
 body[data-layout="phone"] #editPanelBtn,
-body[data-layout="phone"] #ioPanelBtn{display:none!important}
+body[data-layout="phone"] #ioPanelBtn,
+body[data-layout="phone"] #experimentsPanelBtn{display:none!important}
 
 body[data-layout="phone"] #ph-speed-prev,
 body[data-layout="phone"] #ph-speed-next,
@@ -258,6 +270,17 @@ body[data-layout="phone"] #topbar h1{font-size:12px;letter-spacing:.12em}
 
 #edit-panel{width:220px;flex-shrink:0;border-right:1px solid var(--border);overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;background:var(--bg1)}
 #io-panel{width:260px;flex-shrink:0;border-right:1px solid var(--border);overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;background:var(--bg1)}
+/* experiments-panel is NOT part of the sliding-sheet system below (unlike
+   left/right/edit/io) — it's a full mode takeover, same on phone and
+   desktop: hidden by default, and expanded to fill #workspace when
+   body.experiments-mode is set (see the mode-takeover block further down).
+   §3 revision: originally built as a 5th sliding/toggle panel like the other
+   four, but that meant either fighting a real state-corruption bug (running
+   the headless engine concurrently with the live loop — they share global
+   state, no isolation) or a much bigger Web Worker isolation project. The
+   simpler resolution: experiments mode and the live "sandbox" are mutually
+   exclusive, not concurrent — see chess-gas-v1_3-tasks.md §1/§10. */
+#experiments-panel{display:none;flex-direction:column;overflow-y:auto;overflow-x:hidden;background:var(--bg1)}
 /* Only desktop respects this class - phone's edit/io panels are shown or
    hidden entirely via the transform-based sheet mechanism above, and must
    never be affected by it (a plain display:none here would break that
@@ -293,6 +316,36 @@ body[data-layout="phone"] #io-panel::before{
   content:'';display:block;width:40px;height:4px;border-radius:2px;
   background:var(--border2);margin:8px auto;flex-shrink:0;
 }
+/* Experiments mode takeover — same rule set for both layouts, since
+   #workspace is a row-flex container either way (on phone, the panels
+   above are pulled out of flow via position:fixed, so #canvas-area is
+   normally the only row child; here we just swap which single child is
+   visible instead). */
+body.experiments-mode #experiments-panel{display:flex;flex:1;min-width:0}
+body.experiments-mode #canvas-area,
+body.experiments-mode #left-panel,
+body.experiments-mode #right-panel,
+body.experiments-mode #edit-panel,
+body.experiments-mode #io-panel,
+body.experiments-mode #stopbar{display:none!important}
+body.experiments-mode #leftPanelBtn,
+body.experiments-mode #rightPanelBtn,
+body.experiments-mode #editPanelBtn,
+body.experiments-mode #ioPanelBtn,
+body.experiments-mode #playBtn,
+body.experiments-mode #stepBtn,
+body.experiments-mode #resetBtn,
+body.experiments-mode #jitterBtn,
+body.experiments-mode #randomEverythingTopBtn,
+body.experiments-mode #runStopBtn,
+body.experiments-mode #mpf-lbl,
+body.experiments-mode #mpf,
+body.experiments-mode #viewmode-lbl,
+body.experiments-mode #viewmode{display:none!important}
+body.experiments-mode #ph-tab-left,
+body.experiments-mode #ph-tab-edit,
+body.experiments-mode #ph-tab-data,
+body.experiments-mode #ph-tab-io{display:none!important}
 body[data-layout="phone"] #right-resize{display:none}
 .ph-only-subtabs{display:none;flex-shrink:0;border-bottom:1px solid var(--border)}
 body[data-layout="phone"] .ph-only-subtabs{display:flex}
@@ -326,7 +379,7 @@ body[data-layout="phone"] #ph-tabs{display:flex}
 body[data-layout="phone"] #ph-backdrop.ph-open{display:block}
 
 /* left panel internal tabs */
-#lp-tabs{display:flex;flex-shrink:0;border-bottom:1px solid var(--border)}
+#lp-tabs,#exp-panel-tabs{display:flex;flex-shrink:0;border-bottom:1px solid var(--border)}
 .lp-tab{flex:1;background:none;border:none;border-bottom:2px solid transparent;
   color:var(--text3);font-family:inherit;font-size:var(--fs-lbl);letter-spacing:.1em;
   padding:5px 0;cursor:pointer;outline:none;transition:color .12s}
@@ -386,6 +439,7 @@ body[data-layout="phone"] #ph-backdrop.ph-open{display:block}
   <button class="tb-btn on" id="rightPanelBtn" title="Toggle right panel">▶</button>
   <button class="tb-btn" id="editPanelBtn" title="Toggle edit panel">✎ EDIT</button>
   <button class="tb-btn" id="ioPanelBtn" title="Toggle I/O panel">⇄ I/O</button>
+  <button class="tb-btn mode-switch" id="experimentsPanelBtn" title="Toggle experiments mode">⚗ EXPERIMENTS</button>
   <button class="tb-btn" id="minimalModeBtn" title="Minimal mode - just the board">⛶</button>
   <span class="tb-sep">|</span>
   <button class="tb-btn" id="playBtn" title="Play/Pause [space]">▶</button>
@@ -395,7 +449,7 @@ body[data-layout="phone"] #ph-backdrop.ph-open{display:block}
   <button class="tb-btn dice-btn" id="randomEverythingTopBtn" title="Randomise (hold for mode)"><span class="dice-label">⚄</span><span class="dice-mode-dot"></span></button>
   <button class="tb-btn danger" id="runStopBtn" title="Stop the active export run or recording" style="display:none">⏹ STOP</button>
   <span class="tb-sep">|</span>
-  <span class="tb-lbl">SPEED</span>
+  <span class="tb-lbl" id="mpf-lbl">SPEED</span>
   <select class="tb-sel" id="mpf">
     <option value="0.1">0.1×</option><option value="0.25">0.25×</option>
     <option value="0.5">0.5×</option>
@@ -404,7 +458,7 @@ body[data-layout="phone"] #ph-backdrop.ph-open{display:block}
     <option value="512">512×</option><option value="2048">2048×</option>
     <option value="8192">8192×</option>
   </select>
-  <span class="tb-lbl">VIEW</span>
+  <span class="tb-lbl" id="viewmode-lbl">VIEW</span>
   <select class="tb-sel" id="viewmode">
     <option value="auto" selected>auto</option>
     <option value="glyph">glyphs</option>
@@ -438,6 +492,10 @@ body[data-layout="phone"] #ph-backdrop.ph-open{display:block}
   <button class="ph-tab" data-panel="io" id="ph-tab-io">
     <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
     I/O
+  </button>
+  <button class="ph-tab mode-switch" data-panel="experiments" id="ph-tab-experiments">
+    <svg viewBox="0 0 24 24"><path d="M9 3h6"/><path d="M10 3v6l-6 10a1.5 1.5 0 0 0 1.3 2.2h13.4A1.5 1.5 0 0 0 20 19L14 9V3"/><line x1="7.5" y1="15" x2="16.5" y2="15"/></svg>
+    <span id="ph-tab-experiments-lbl">EXPTS</span>
   </button>
 </div>
 
@@ -1085,6 +1143,19 @@ body[data-layout="phone"] #ph-backdrop.ph-open{display:block}
         <div class="row" style="gap:4px">
           <button class="mini-btn dice-btn" id="randomEverythingBtn" style="flex:1;position:relative"><span class="dice-label">⚄ RANDOM EVERYTHING</span><span class="dice-mode-dot"></span></button>
         </div>
+        <div class="row-sep"></div>
+        <div style="font-size:var(--fs-sm);color:var(--text3);padding:0 0 4px 0">Demo mode: repeatedly nudges a small % of settings, chained from wherever it currently is — a controlled walk through nearby configurations, not a fresh randomize each step.</div>
+        <span class="sb-param"><span class="tb-lbl">step size</span>
+          <input type="range" id="demoModePct" min="1" max="30" value="8">
+          <span class="val-lbl" id="demoModePctLbl">8%</span>
+        </span>
+        <span class="sb-param"><span class="tb-lbl">interval (sec)</span>
+          <input type="number" id="demoModeInterval" min="1" value="4" class="sb-num">
+        </span>
+        <div class="row" style="gap:4px">
+          <button class="mini-btn" id="demoModeBtn" style="flex:1">▶ START DEMO MODE</button>
+        </div>
+        <div id="demoModeMsg" style="font-size:var(--fs-sm);color:var(--text2);padding:2px 0;min-height:1.2em"></div>
       </div>
     </div>
 
@@ -1330,7 +1401,112 @@ body[data-layout="phone"] #ph-backdrop.ph-open{display:block}
     </div>
 </div><!-- /io-panel -->
 
+  <!-- EXPERIMENTS PANEL (v1.3 §1) -->
+  <div id="experiments-panel">
+    <div id="exp-panel-tabs">
+      <button class="lp-tab active" data-subtab-group="experiments" data-subtab="setup">SETUP</button>
+      <button class="lp-tab" data-subtab-group="experiments" data-subtab="results">RESULTS</button>
+      <button class="lp-tab" data-subtab-group="experiments" data-subtab="profile">PROFILE</button>
+      <button class="lp-tab" data-subtab-group="experiments" data-subtab="saved">SAVED</button>
+    </div>
 
+    <div class="lp-tab-body" id="exp-setup" data-subtab-body="experiments" data-subtab-id="setup">
+      <div class="section">
+        <div class="section-hdr open" data-target="exp-setup-body"><span>ENSEMBLE SETUP</span><span class="arrow">▶</span></div>
+        <div class="sec-body" id="exp-setup-body">
+          <div style="font-size:var(--fs-sm);color:var(--text3);padding:0 0 4px 0">Runs N headless replicates against the current live physics settings (whatever's configured in PHYSICS/DISPLAY right now), one different seed per replicate.</div>
+          <span class="sb-param"><span class="tb-lbl">replicates (N)</span>
+            <input type="number" id="expReplicates" min="1" value="20" class="sb-num">
+          </span>
+          <span class="sb-param"><span class="tb-lbl">step budget / run</span>
+            <input type="number" id="expStepBudget" min="1" value="20000" class="sb-num">
+          </span>
+          <span class="sb-param"><span class="tb-lbl">base seed</span>
+            <input type="text" id="expBaseSeed" placeholder="random" class="sb-num">
+          </span>
+          <div style="font-size:var(--fs-sm);color:var(--text3);padding:2px 0 4px 0">Each replicate uses "&lt;base seed&gt;-r&lt;i&gt;" — same base seed + same settings reproduces the exact same ensemble.</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-hdr open" data-target="exp-autostop-body"><span>AUTOSTOP (experiment-only)</span><span class="arrow">▶</span></div>
+        <div class="sec-body" id="exp-autostop-body">
+          <div style="font-size:var(--fs-sm);color:var(--text3);padding:0 0 4px 0">Independent of the sandbox's AUTO controls in the top bar — changing one doesn't affect the other. Each replicate stops on its own once a condition here is met (or runs the full step budget if action is "nothing").</div>
+          <div class="sb-row">
+            <span class="tb-lbl sb-label-fixed">action</span>
+            <div id="ig-expEquilAction"></div>
+            <select id="expEquilAction" style="display:none">
+              <option value="none" selected>nothing</option>
+              <option value="pause">stop</option>
+            </select>
+            <span class="tip tip-left"><span class="tip-icon">?</span><span class="tip-box">No "reset" option here, unlike the sandbox — a headless replicate is already a single self-contained run from a fresh board, so mid-run reset doesn't apply.</span></span>
+          </div>
+          <div class="sb-row">
+            <span class="tb-lbl sb-label-fixed">when</span>
+            <div id="ig-expEquilCondition"></div>
+            <input type="hidden" id="expEquilConditions" value="caprate">
+          </div>
+          <div class="sb-row">
+            <span class="tb-lbl sb-label-fixed">combine</span>
+            <div id="ig-expEquilGate"></div>
+            <select id="expEquilGate" style="display:none">
+              <option value="or" selected>any (OR)</option>
+              <option value="and">all (AND)</option>
+            </select>
+          </div>
+          <div class="sb-row sb-params">
+            <span class="sb-param"><span class="tb-lbl">low cap sensitivity</span>
+              <input type="range" id="expEquilSens" min="1" max="50" value="10">
+              <span class="val-lbl" id="expEquilSensLbl">10</span>
+            </span>
+            <span class="sb-param"><span class="tb-lbl">no cap N steps</span>
+              <input type="number" id="expEquilNoCap" min="10" value="200" class="sb-num">
+            </span>
+            <span class="sb-param"><span class="tb-lbl">% mat threshold</span>
+              <input type="range" id="expEquilMatPct" min="1" max="50" value="20">
+              <span class="val-lbl" id="expEquilMatPctLbl">20%</span>
+            </span>
+            <span class="sb-param"><span class="tb-lbl">N steps count</span>
+              <input type="number" id="expEquilNTurns" min="1" value="10000" class="sb-num">
+            </span>
+            <span class="sb-param"><span class="tb-lbl">time (sec)</span>
+              <input type="number" id="expEquilTimeSec" min="1" value="30" class="sb-num">
+            </span>
+            <span class="sb-param"><span class="tb-lbl">piece count ≤</span>
+              <input type="number" id="expEquilPieceCount" min="0" value="8" class="sb-num">
+            </span>
+            <span class="sb-param"><span class="tb-lbl">promotions ≥</span>
+              <input type="number" id="expEquilPromotions" min="1" value="10" class="sb-num">
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-hdr open" data-target="exp-run-body"><span>RUN</span><span class="arrow">▶</span></div>
+        <div class="sec-body" id="exp-run-body">
+          <div id="exp-time-warning" style="display:none;font-size:var(--fs-sm);color:#a45c00;background:#fff3e0;border:1px solid #e0a030;border-radius:4px;padding:6px;margin:4px 0">
+            ⚠ The <b>'time'</b> autostop condition is enabled. It's wall-clock based, not step-based — re-running the same seed/config later can give different results. <button class="mini-btn" id="exp-time-warning-ack" style="margin-top:4px">Run anyway</button>
+          </div>
+
+          <div class="row" style="gap:4px;padding-top:4px">
+            <button class="tb-btn" id="expRunBtn" style="flex:1">▶ RUN ENSEMBLE</button>
+            <button class="tb-btn danger" id="expStopBtn" style="flex:1;display:none">⏹ STOP</button>
+          </div>
+          <div id="exp-status" style="font-size:var(--fs-sm);color:var(--text2);padding:4px 0"></div>
+        </div>
+      </div>
+    </div>
+    <div class="lp-tab-body lp-hidden" id="exp-results" data-subtab-body="experiments" data-subtab-id="results">
+      <!-- §4: results table + CSV export go here -->
+    </div>
+    <div class="lp-tab-body lp-hidden" id="exp-profile" data-subtab-body="experiments" data-subtab-id="profile">
+      <!-- §5: aggregation / calibration profile go here -->
+    </div>
+    <div class="lp-tab-body lp-hidden" id="exp-saved" data-subtab-body="experiments" data-subtab-id="saved">
+      <!-- §6: Experiment save/load list go here -->
+    </div>
+  </div><!-- /experiments-panel -->
 
   <!-- CANVAS -->
   <div id="canvas-area">
@@ -2276,12 +2452,12 @@ function step(){
   if(captured && coll!=='capture'){
     if(coll==='elastic'){
       // Bounce: move is rejected, piece stays.
-      whiteTurn=!whiteTurn; stepCount++; return;
+      bounceCount++; whiteTurn=!whiteTurn; stepCount++; return;
     }
     if(coll==='inelastic'){
       // Capture with probability _inelasticP, otherwise bounce
       if(random()>_inelasticP){
-        whiteTurn=!whiteTurn; stepCount++; return;
+        bounceCount++; whiteTurn=!whiteTurn; stepCount++; return;
       }
       // fall through to standard capture below
     }
@@ -3485,18 +3661,182 @@ function snapshotSettingsGroups(groups){
   }
   return snap;
 }
-function restoreSettingsPartially(snap, pct){
+// Shared write primitive: unconditionally applies every {id:{type,value}}
+// entry in a snapshot, dispatching change/input like the UI itself would.
+// Guarded by _applyingProgrammatically so the seed+ override-tracking
+// listener (below, wired via wireSeedPlusOverrideTracking) doesn't mistake
+// these programmatic writes for a manual edit.
+let _applyingProgrammatically = false;
+function applySettingsSnapshot(snap){
+  _applyingProgrammatically = true;
   for(const id in snap){
-    if(diceRandom()*100 >= pct){
-      const el=document.getElementById(id);
+    const el=document.getElementById(id);
+    if(!el) continue;
+    const {type,value}=snap[id];
+    if(type==='check') el.checked=value; else el.value=value;
+    el.dispatchEvent(new Event('change'));
+    el.dispatchEvent(new Event('input'));
+  }
+  _applyingProgrammatically = false;
+}
+function restoreSettingsPartially(snap, pct){
+  const toApply = {};
+  for(const id in snap) if(diceRandom()*100 >= pct) toApply[id] = snap[id];
+  applySettingsSnapshot(toApply);
+}
+// ── Seed+ : the randomization/reset contract ────────────────────────────────
+// v1.3 redesign, replacing three independently-broken copies of "randomize
+// then rebuild the board" (top/edit-panel dice buttons, manual reset button,
+// automatic equilibrium-reset) with one shared, correct sequence.
+//
+// The bug this fixes: dicePRNG (the stream randomPhysics()/fxRandomize()
+// draw from) and physicsPRNG (the stream the actual simulation draws from)
+// used to only get resynchronized together at reset() time. Drawing new
+// settings BEFORE that resync meant the draws came from whatever unknown
+// state dicePRNG happened to be left at — not reproducible from anything
+// visible — and then reset() would (if unpinned) show a BRAND NEW seed that
+// had nothing to do with what was just drawn. Pinning "the seed you just
+// saw" reproduced nothing.
+//
+// The fix is one rule: reseed to a KNOWN seed (shown in the field) BEFORE
+// any dicePRNG draws happen, then reset with that SAME seed afterward.
+// reset()'s own seedForRun(seed) call resets both streams back to position
+// 0 of that seed, discarding whatever the randomize pass consumed — so the
+// physics trajectory always starts clean, and (seed, mode, pct) together
+// fully determine both the resulting settings AND the run that follows.
+// Pin the seed shown here and you get back to exactly this, every time.
+function randomizeWithSeedDiscipline(mode, pct, preserveView){
+  const inputEl = document.getElementById('seedInput');
+  const pinEl = document.getElementById('seedPin');
+  const seed = (pinEl?.checked && inputEl?.value) ? inputEl.value : freshSeedString();
+  if(inputEl) inputEl.value = seed; // show it BEFORE drawing — what you see always matches what's about to be drawn
+  seedForRun(seed);
+  runRandomizeWithPct(mode, pct);
+  reset(preserveView, seed);
+  // A fresh recipe just ran — any prior manual overrides no longer apply
+  // (they were tweaks on top of a DIFFERENT base), and this is now the
+  // provenance for whatever's live. See the seed+ block below.
+  _seedPlusBase = {seed, mode, pct};
+  _seedPlusOverrides = {};
+}
+// For "on reset, maybe also randomize first" call sites (manual reset
+// button, automatic equilibrium-reset) — these always reset regardless of
+// whether randomize happened, and unlike a direct dice-button press, a
+// rebuild is happening either way, so even mode==='display' follows the
+// full discipline here rather than the live/non-destructive dice-button path.
+function maybeRandomizeThenReset(shouldRandomize, mode, pct, preserveView){
+  if(!shouldRandomize){ reset(preserveView); return; }
+  randomizeWithSeedDiscipline(mode, pct, preserveView);
+}
+
+// ── Seed+ : compact, portable configuration representation ─────────────────
+// v1.3 redesign, replacing the old "export everything as one giant base64
+// blob regardless of what actually changed" approach for SHARING/SAVING a
+// configuration (BUILT_IN_PRESETS' internal storage is untouched — it's one
+// fixed constant, not the per-session bloat this was about).
+//
+// Shape: { seed: "0" | "<realSeed>", mode, pct, overrides: {id: value} }
+//   - seed:"0" is a reserved sentinel meaning "DEFAULTS, no recipe at all."
+//     (Collision with a real drawn seed is ~1-in-4-billion and harmless even
+//     if it happens — see conversation for why this is an acceptable risk.)
+//   - mode/pct are the randomize recipe used to reach the base, kept as
+//     provenance/metadata — NOT replayed to reproduce a result. Reproduction
+//     always resolves to the explicit `overrides`, so a future change to
+//     randomPhysics()/fxRandomize()'s internals can never silently change
+//     what an old saved seed+ value reproduces.
+//   - overrides is sparse: only fields that differ from what the base
+//     recipe alone would produce, e.g. manual tweaks made after randomizing.
+//
+// _seedPlusBase/_seedPlusOverrides track the CURRENT live state's provenance
+// as the user interacts, so capturing it is a trivial readout rather than an
+// expensive diff — see wireSeedPlusOverrideTracking below.
+let _seedPlusBase = {seed:"0", mode:null, pct:null};
+let _seedPlusOverrides = {};
+
+// Any live change to a tracked settings field made OUTSIDE a programmatic
+// apply/randomize pass (guarded by _applyingProgrammatically) is recorded as
+// an explicit override. Call once at init.
+function wireSeedPlusOverrideTracking(){
+  for(const group in SETTINGS_SCHEMA){
+    for(const entry of SETTINGS_SCHEMA[group]){
+      const id = typeof entry==='string' ? entry : entry.id;
+      const type = typeof entry==='string' ? 'value' : (entry.type||'value');
+      const el = document.getElementById(id);
       if(!el) continue;
-      const {type,value}=snap[id];
-      if(type==='check') el.checked=value; else el.value=value;
-      el.dispatchEvent(new Event('change'));
-      el.dispatchEvent(new Event('input'));
+      el.addEventListener('change', ()=>{
+        if(_applyingProgrammatically) return;
+        _seedPlusOverrides[id] = type==='check' ? el.checked : el.value;
+      });
     }
   }
 }
+
+// Lazy + cached, same reasoning as getDefaultSettingsData() above it relies
+// on: BUILT_IN_PRESETS is a `const` declared much later in the file, so this
+// can't be an eager top-level const here — it would hit the temporal dead
+// zone. Converts getDefaultSettingsData()'s per-group shape into the flat
+// {id:{type,value}} shape applySettingsSnapshot()/snapshotSettingsGroups()
+// already use everywhere else.
+let _defaultsSnapshotCache = null;
+function getDefaultsSnapshot(){
+  if(_defaultsSnapshotCache) return _defaultsSnapshotCache;
+  const def = getDefaultSettingsData();
+  const snap = {};
+  if(def){
+    for(const group in SETTINGS_SCHEMA){
+      for(const entry of SETTINGS_SCHEMA[group]){
+        const id = typeof entry==='string' ? entry : entry.id;
+        const type = typeof entry==='string' ? 'value' : (entry.type||'value');
+        const v = def[group]?.[id];
+        if(v===undefined) continue;
+        snap[id] = {type, value: v};
+      }
+    }
+  }
+  return (_defaultsSnapshotCache = snap);
+}
+
+function captureCurrentSeedPlus(){
+  return {seed:_seedPlusBase.seed, mode:_seedPlusBase.mode, pct:_seedPlusBase.pct, overrides:{..._seedPlusOverrides}};
+}
+
+// Resolves a seed+ object into live settings, then rebuilds the board — the
+// one canonical way to load any stored/shared configuration. Always starts
+// from DEFAULTS (a portable value shouldn't depend on whatever happens to
+// currently be on screen), unlike randomizeWithSeedDiscipline above which
+// deliberately randomizes FROM the current live state for interactive use.
+function applySeedPlus(sp, preserveView){
+  const seed = sp.seed || "0";
+  applySettingsSnapshot(getDefaultsSnapshot());
+  if(seed !== "0"){
+    seedForRun(seed);
+    runRandomizeWithPct(sp.mode || 'both', sp.pct ?? 100);
+  }
+  if(sp.overrides) applySettingsSnapshot(sp.overrides);
+  const inputEl = document.getElementById('seedInput');
+  if(inputEl) inputEl.value = seed;
+  reset(preserveView, seed);
+  _seedPlusBase = {seed, mode: sp.mode||null, pct: sp.pct ?? null};
+  _seedPlusOverrides = {...(sp.overrides||{})};
+}
+
+const SEEDPLUS_VERSION = 1;
+function exportSeedPlusString(){
+  const sp = captureCurrentSeedPlus();
+  return btoa(encodeURIComponent(JSON.stringify(Object.assign({v:SEEDPLUS_VERSION, wHue, bHue}, sp))));
+}
+function importSeedPlusString(str){
+  let data;
+  try{ data = JSON.parse(decodeURIComponent(atob(str.trim()))); }
+  catch(e){ return {ok:false, reason:'unreadable'}; }
+  if(!data || typeof data!=='object' || typeof data.v!=='number') return {ok:false, reason:'unversioned'};
+  if(data.v > SEEDPLUS_VERSION) return {ok:false, reason:'newer', fileVersion:data.v};
+  if(typeof data.wHue==='number') wHue=data.wHue;
+  if(typeof data.bHue==='number') bHue=data.bHue;
+  applySeedPlus({seed:data.seed, mode:data.mode, pct:data.pct, overrides:data.overrides||{}}, true);
+  return {ok:true};
+}
+
 function runRandomizeWithPct(mode, pct){
   // randomPhysics() also touches initsel/layoutPattern/layoutPieces/layoutColour,
   // which live in the 'layout' schema group rather than 'physics' - both need
@@ -3505,8 +3845,10 @@ function runRandomizeWithPct(mode, pct){
                : mode==='physics' ? ['physics','layout']
                : ['display'];
   const snap = pct<100 ? snapshotSettingsGroups(groups) : null;
+  _applyingProgrammatically = true;
   if(mode==='both'||mode==='physics') randomPhysics();
   if(mode==='both'||mode==='display') fxRandomize();
+  _applyingProgrammatically = false;
   if(snap) restoreSettingsPartially(snap, pct);
 }
 
@@ -3839,6 +4181,7 @@ const SPARKS={
 for(const sp of Object.values(SPARKS)){sp.buf=new Float32Array(SLEN);sp.pos=0;}
 const sparkC={};
 let capCount=0,lastCapStep=0,wCapturesMade=0,bCapturesMade=0,promotionCount=0,runStartTime=Date.now();
+let bounceCount=0; // §2: steps where a collision bounce left the board unchanged (reject-rate signal)
 
 function buildSparklines(){
   const blk=document.getElementById('spark-block'); blk.innerHTML='';
@@ -4170,6 +4513,12 @@ document.getElementById('equilSens')?.addEventListener('input',()=>{
 document.getElementById('equilMatPct')?.addEventListener('input',()=>{
   document.getElementById('equilMatPctLbl').textContent=document.getElementById('equilMatPct').value+'%';
 });
+document.getElementById('expEquilSens')?.addEventListener('input',()=>{
+  document.getElementById('expEquilSensLbl').textContent=document.getElementById('expEquilSens').value;
+});
+document.getElementById('expEquilMatPct')?.addEventListener('input',()=>{
+  document.getElementById('expEquilMatPctLbl').textContent=document.getElementById('expEquilMatPct').value+'%';
+});
 function updateAutostopSummary(){
   const conds = (document.getElementById('equilConditions')?.value||'caprate').split(',').filter(Boolean);
   const gate = document.getElementById('equilGate')?.value || 'or';
@@ -4287,6 +4636,7 @@ function _potPaint(e){
 const PS=50,ZK=1.3;
 window.addEventListener('keydown',e=>{
   if(e.target.tagName==='SELECT'||e.target.tagName==='INPUT') return;
+  if(_experimentsMode) return; // sandbox is inert while in experiments mode — see §3
   const k=e.key.toLowerCase();
   if(k==='w'||k==='arrowup'){doPan(0,PS);e.preventDefault();}
   if(k==='s'||k==='arrowdown'){doPan(0,-PS);e.preventDefault();}
@@ -4589,6 +4939,7 @@ function reset(preserveView=false, forcedSeed=null){
   buildBoard();initFieldArrays();
   for(const sp of Object.values(SPARKS)){sp.buf.fill(0);sp.pos=0;}
   capCount=0;lastCapStep=0;wCapturesMade=0;bCapturesMade=0;promotionCount=0;runStartTime=Date.now();
+  bounceCount=0;
   clearHistory();
   initSpectro();
   clearTrail(); capturePositions=[]; initTrailBoard();
@@ -4609,7 +4960,12 @@ document.getElementById('stepBtn').addEventListener('click',()=>{
   if(running) togglePlay();
   rebuildPieceLists();step();flushCaptures();
 });
-document.getElementById('resetBtn').addEventListener('click',()=>reset(true));
+document.getElementById('resetBtn').addEventListener('click',()=>{
+  const shouldRandomize = document.getElementById('randomiseOnReset')?.checked;
+  const pct = parseInt(document.getElementById('randomChangePct')?.value || 100);
+  const mode = window.diceMode===0 ? 'both' : window.diceMode===1 ? 'physics' : 'display';
+  maybeRandomizeThenReset(shouldRandomize, mode, pct, true);
+});
 document.getElementById('nsel')?.addEventListener('change',()=>{
   if(_applyingExperiment) return;
   if(document.getElementById('lockWH')?.checked){
@@ -4943,7 +5299,140 @@ function updateRankHistogram(en){
   wireDesktopPanelToggle('rightPanelBtn','right-panel','▶','◀');
   wireDesktopPanelToggle('editPanelBtn','edit-panel');
   wireDesktopPanelToggle('ioPanelBtn','io-panel');
+  document.getElementById('experimentsPanelBtn')?.addEventListener('click', toggleExperimentsMode);
 })();
+
+// §3 revision: experiments mode and the live sandbox are mutually exclusive
+// (see the CSS block comment near #experiments-panel for why — a documented
+// state-corruption bug rules out true concurrency without a much bigger
+// Web Worker isolation project). Entering pauses the sandbox and swaps the
+// whole #workspace content over to #experiments-panel; leaving restores the
+// sandbox exactly as it was paused (its state was never touched).
+let _experimentsMode = false;
+function toggleExperimentsMode(){
+  if(_experimentsMode) exitExperimentsMode(); else enterExperimentsMode();
+}
+function enterExperimentsMode(){
+  if(_experimentsMode) return;
+  if(running) pauseForExport();
+  stopDemoMode();
+  _experimentsMode = true;
+  document.body.classList.add('experiments-mode');
+  const btn = document.getElementById('experimentsPanelBtn');
+  if(btn){ btn.classList.add('on'); btn.textContent = '🪣 SANDBOX'; btn.title = 'Back to sandbox'; }
+  document.getElementById('ph-tab-experiments')?.classList.add('active');
+  const phLbl = document.getElementById('ph-tab-experiments-lbl');
+  if(phLbl) phLbl.textContent = 'SANDBOX';
+}
+function exitExperimentsMode(){
+  if(!_experimentsMode) return;
+  _experimentsMode = false;
+  document.body.classList.remove('experiments-mode');
+  const btn = document.getElementById('experimentsPanelBtn');
+  if(btn){ btn.classList.remove('on'); btn.textContent = '⚗ EXPERIMENTS'; btn.title = 'Toggle experiments mode'; }
+  document.getElementById('ph-tab-experiments')?.classList.remove('active');
+  const phLbl = document.getElementById('ph-tab-experiments-lbl');
+  if(phLbl) phLbl.textContent = 'EXPTS';
+}
+
+// ── Ensemble runner (§3) ─────────────────────────────────────────────────
+// Own stop flag, deliberately not shared with _exportRunStopRequested — this
+// runs independently of the export-batch system (different trigger, own
+// button, can't be confused with "stop the export/recording").
+let _ensembleRunActive = false, _ensembleStopRequested = false;
+let _expWallClockAcked = false;
+let _lastEnsembleRecords = null; // consumed by §4's RESULTS tab
+
+function setEnsembleStatusText(txt){
+  const el = document.getElementById('exp-status');
+  if(el) el.textContent = txt;
+}
+function setEnsembleRunningUI(active){
+  const runBtn = document.getElementById('expRunBtn');
+  const stopBtn = document.getElementById('expStopBtn');
+  if(runBtn) runBtn.style.display = active ? 'none' : '';
+  if(stopBtn) stopBtn.style.display = active ? '' : 'none';
+  for(const id of ['expReplicates','expStepBudget','expBaseSeed']){
+    const el = document.getElementById(id);
+    if(el) el.disabled = active;
+  }
+}
+
+// §3: reads the decoupled experiment autostop controls (own DOM ids, see
+// exp-autostop-body markup) into a cfg.autostop-shaped object. Deliberately
+// NOT reading equilConditions/equilGate/equilAction etc. — those are the
+// sandbox's own controls and must stay untouched by anything here.
+function buildExperimentAutostopConfig(){
+  return {
+    equilAction: document.getElementById('expEquilAction')?.value || 'none',
+    equilConditions: document.getElementById('expEquilConditions')?.value || 'caprate',
+    equilGate: document.getElementById('expEquilGate')?.value || 'or',
+    equilSens: parseInt(document.getElementById('expEquilSens')?.value || 10),
+    equilNoCap: parseInt(document.getElementById('expEquilNoCap')?.value || 200),
+    equilMatPct: parseInt(document.getElementById('expEquilMatPct')?.value || 20)/100,
+    equilNTurns: parseInt(document.getElementById('expEquilNTurns')?.value || 10000),
+    equilTimeSec: parseInt(document.getElementById('expEquilTimeSec')?.value || 30),
+    equilPieceCount: parseInt(document.getElementById('expEquilPieceCount')?.value || 8),
+    equilPromotions: parseInt(document.getElementById('expEquilPromotions')?.value || 10),
+  };
+}
+
+async function runEnsemble(){
+  if(_ensembleRunActive) return;
+  const nReplicates = Math.max(1, parseInt(document.getElementById('expReplicates')?.value) || 20);
+  const stepBudget = Math.max(1, parseInt(document.getElementById('expStepBudget')?.value) || 20000);
+  const baseSeedEl = document.getElementById('expBaseSeed');
+  const baseSeed = (baseSeedEl?.value||'').trim() || freshSeedString();
+  if(baseSeedEl) baseSeedEl.value = baseSeed; // show what was actually used — needed to reproduce this exact ensemble later
+  const cfg = buildPhysicsConfig();
+  cfg.autostop = buildExperimentAutostopConfig(); // §3 revision: decoupled from the sandbox's live autostop settings
+
+  _ensembleRunActive = true; _ensembleStopRequested = false;
+  setEnsembleRunningUI(true);
+  const records = [];
+  for(let i=0; i<nReplicates; i++){
+    if(_ensembleStopRequested) break;
+    setEnsembleStatusText(`Running replicate ${i+1} / ${nReplicates}…`);
+    const seed = `${baseSeed}-r${i}`;
+    const record = await runHeadlessOnce(seed, cfg, stepBudget);
+    record.seed = seed;
+    record.replicateIndex = i;
+    records.push(record);
+    // §1: yield BETWEEN runs, not just within one run's step loop — lets the
+    // status text above actually paint, and keeps the panel/rest of the UI
+    // responsive across a long ensemble.
+    await new Promise(res=>setTimeout(res,0));
+  }
+  _ensembleRunActive = false;
+  setEnsembleRunningUI(false);
+  _expWallClockAcked = false; // re-warn on the next run, even if settings didn't visibly change
+  setEnsembleStatusText(_ensembleStopRequested
+    ? `Stopped after ${records.length} / ${nReplicates} replicates.`
+    : `Done — ${records.length} replicate${records.length===1?'':'s'} completed.`);
+  _lastEnsembleRecords = records;
+  return records;
+}
+function stopEnsemble(){
+  _ensembleStopRequested = true;
+  setEnsembleStatusText('stopping…');
+}
+
+document.getElementById('expRunBtn')?.addEventListener('click', ()=>{
+  const conditions = (document.getElementById('expEquilConditions')?.value || '').split(',').filter(Boolean);
+  if(conditions.includes('time') && !_expWallClockAcked){
+    const w = document.getElementById('exp-time-warning');
+    if(w) w.style.display = 'block';
+    return;
+  }
+  runEnsemble();
+});
+document.getElementById('exp-time-warning-ack')?.addEventListener('click', ()=>{
+  _expWallClockAcked = true;
+  const w = document.getElementById('exp-time-warning');
+  if(w) w.style.display = 'none';
+  runEnsemble();
+});
+document.getElementById('expStopBtn')?.addEventListener('click', stopEnsemble);
 
 // ── PHASE SPACE ────────────────────────────────────────────────────────────
 // All phase plots use HIST_SERIES ring buffers as data sources.
@@ -5808,7 +6297,14 @@ document.getElementById('randomPhysicsBtn')?.addEventListener('click', randomPhy
   function execMode() {
     const pct = parseInt(document.getElementById('randomChangePct')?.value || 100);
     const mode = diceMode===0 ? 'both' : diceMode===1 ? 'physics' : 'display';
-    runRandomizeWithPct(mode, pct);
+    if(mode === 'display'){
+      // Cosmetic only — stays live/non-destructive, no reset, no reseed.
+      // Reseeding here would silently perturb an ongoing run's future
+      // trajectory the moment the next tick calls random().
+      runRandomizeWithPct(mode, pct);
+      return;
+    }
+    randomizeWithSeedDiscipline(mode, pct, true);
   }
   window.diceExec = execMode; // exposed so other UI (e.g. the seed Load button) can trigger the currently-selected dice action
 
@@ -5935,7 +6431,10 @@ function randomPhysics(){
   const decayModes=['none','none','none','none','disappear','selfcollide','jitter'];
   set('decayMode', rnd(decayModes));
   rndRange('decayRate');
-  reset(true);
+  // Deliberately no reset() here anymore (§v1.3 randomization redesign) —
+  // the caller owns reset timing now, via randomizeWithSeedDiscipline(),
+  // so the same seed can be shown/reseeded BEFORE these draws happen rather
+  // than after. See that function's comment for the full "seed+" rationale.
 }
 
 // ── COLOUR CONTROLS ────────────────────────────────────────────────────────
@@ -6144,17 +6643,62 @@ document.getElementById('aboutBtn2')?.addEventListener('click',()=>{
 })();
 
 
+// ── Demo mode ────────────────────────────────────────────────────────────
+// Not a fresh randomize each step — a controlled walk, chaining small-pct
+// perturbations from wherever the config currently is. This is what
+// actually gives "adjacent-feeling" configurations (see conversation for
+// why a locality-sensitive hash on the seed itself wouldn't: PRNGs/hashes
+// are built to decorrelate similar inputs, the opposite of what's wanted
+// here). Each step's provenance is logged in _demoTrajectory, so a demo run
+// is itself an inspectable/replayable object, not just a live animation.
+let _demoModeActive = false, _demoModeTimer = null, _demoTrajectory = [];
+function demoModeStep(){
+  if(_experimentsMode){ stopDemoMode(); return; } // sandbox is fully inert in experiments mode
+  const pct = parseInt(document.getElementById('demoModePct')?.value || 8);
+  const mode = window.diceMode===0 ? 'both' : window.diceMode===1 ? 'physics' : 'display';
+  randomizeWithSeedDiscipline(mode, pct, true);
+  _demoTrajectory.push({..._seedPlusBase, t: Date.now()});
+  const msg = document.getElementById('demoModeMsg');
+  if(msg) msg.textContent = `running — ${_demoTrajectory.length} step${_demoTrajectory.length===1?'':'s'}.`;
+}
+function startDemoMode(){
+  if(_demoModeActive) return;
+  _demoModeActive = true;
+  _demoTrajectory = [];
+  const btn = document.getElementById('demoModeBtn');
+  if(btn){ btn.textContent = '⏹ STOP DEMO MODE'; btn.classList.add('on'); }
+  const intervalSec = Math.max(1, parseInt(document.getElementById('demoModeInterval')?.value || 4));
+  demoModeStep(); // first step immediately, don't wait a full interval
+  _demoModeTimer = setInterval(demoModeStep, intervalSec*1000);
+}
+function stopDemoMode(){
+  if(!_demoModeActive) return;
+  _demoModeActive = false;
+  if(_demoModeTimer) clearInterval(_demoModeTimer);
+  _demoModeTimer = null;
+  const btn = document.getElementById('demoModeBtn');
+  if(btn){ btn.textContent = '▶ START DEMO MODE'; btn.classList.remove('on'); }
+  const msg = document.getElementById('demoModeMsg');
+  if(msg) msg.textContent = `stopped — ${_demoTrajectory.length} step${_demoTrajectory.length===1?'':'s'} recorded.`;
+}
+document.getElementById('demoModeBtn')?.addEventListener('click', ()=>{
+  if(_demoModeActive) stopDemoMode(); else startDemoMode();
+});
+document.getElementById('demoModePct')?.addEventListener('input',()=>{
+  document.getElementById('demoModePctLbl').textContent=document.getElementById('demoModePct').value+'%';
+});
+
 document.getElementById('io-export-btn')?.addEventListener('click',()=>{
-  document.getElementById('io-settings-text').value = exportSettingsString();
-  document.getElementById('io-settings-msg').textContent = 'exported.';
+  document.getElementById('io-settings-text').value = exportSeedPlusString();
+  document.getElementById('io-settings-msg').textContent = 'exported (seed+ format — seed plus whatever differs from defaults, not a full settings dump).';
 });
 document.getElementById('io-import-btn')?.addEventListener('click',()=>{
-  const r = importSettingsString(document.getElementById('io-settings-text').value);
+  const r = importSeedPlusString(document.getElementById('io-settings-text').value);
   const msg = document.getElementById('io-settings-msg');
   if(r.ok) msg.textContent = 'imported.';
   else if(r.reason==='newer') msg.textContent = `this string is from a newer version (v${r.fileVersion}) — update chess gas to load it.`;
-  else if(r.reason==='unversioned') msg.textContent = 'unversioned string — too old or not a chess gas settings string.';
-  else msg.textContent = 'invalid settings string.';
+  else if(r.reason==='unversioned') msg.textContent = 'unversioned string — too old or not a chess gas seed+ string.';
+  else msg.textContent = 'invalid seed+ string.';
 });
 document.getElementById('io-copy-btn')?.addEventListener('click',()=>{
   const ta=document.getElementById('io-settings-text');
@@ -6173,11 +6717,15 @@ function wireSeedControls(inputId, msgId, loadBtnId, randomBtnId, copyBtnId, pas
   function flash(t){ if(msgEl){ msgEl.textContent=t; } }
   document.getElementById(loadBtnId)?.addEventListener('click',()=>{
     const v = (inputEl.value||'').trim() || freshSeedString();
+    inputEl.value = v;
     const pinEl = document.getElementById('seedPin');
     if(pinEl) pinEl.checked = true;
-    seedForRun(v);         // seed both streams to v now, so the dice roll below is deterministic
-    window.diceExec?.();   // re-roll whatever the 🎲 button is currently set to (both/physics/display)
-    reset(true, v);        // rebuild the board using the freshly-rolled params; reseeds both streams to v again
+    const pct = parseInt(document.getElementById('randomChangePct')?.value || 100);
+    const mode = window.diceMode===0 ? 'both' : window.diceMode===1 ? 'physics' : 'display';
+    // pin is now checked and the field holds v, so this reseeds to v
+    // internally — same net effect as before, now via the shared helper
+    // instead of its own copy of the reseed-draw-reset sequence.
+    maybeRandomizeThenReset(true, mode, pct, true);
     flash(`loaded & pinned — run restarted with seed "${v}" (dice re-rolled too).`);
   });
   document.getElementById(randomBtnId)?.addEventListener('click',()=>{
@@ -6202,6 +6750,7 @@ function wireSeedControls(inputId, msgId, loadBtnId, randomBtnId, copyBtnId, pas
   });
 }
 wireSeedControls('seedInput','seedMsg','seedLoadBtn','seedRandomBtn','seedCopyBtn','seedPasteBtn');
+wireSeedPlusOverrideTracking();
 document.getElementById('setup-refresh-btn')?.addEventListener('click', renderCurrentSetup);
 
 // ── IMAGE EXPORT ─────────────────────────────────────────────────────────
@@ -7904,13 +8453,11 @@ function checkEquilibrium(){
       if(_headlessMode) _headlessStopRequested = true;
       else togglePlay();
     } else if(action === 'reset'){
-      if(document.getElementById('randomiseOnReset')?.checked){
-        const pct = parseInt(document.getElementById('randomChangePct')?.value || 100);
-        const mode = window.diceMode===0 ? 'both' : window.diceMode===1 ? 'physics' : 'display';
-        runRandomizeWithPct(mode, pct);
-      }
+      const shouldRandomize = document.getElementById('randomiseOnReset')?.checked;
+      const pct = parseInt(document.getElementById('randomChangePct')?.value || 100);
+      const mode = window.diceMode===0 ? 'both' : window.diceMode===1 ? 'physics' : 'display';
       const savedZoom=zoom, savedPanX=panX, savedPanY=panY;
-      reset();
+      maybeRandomizeThenReset(shouldRandomize, mode, pct, false);
       zoom=savedZoom; panX=savedPanX; panY=savedPanY;
     }
   }
@@ -7965,6 +8512,7 @@ function initHeadlessRun(seed, cfg){
   initFieldArrays(4);
   for(const sp of Object.values(SPARKS)){sp.buf.fill(0);sp.pos=0;}
   capCount=0;lastCapStep=0;wCapturesMade=0;bCapturesMade=0;promotionCount=0;runStartTime=Date.now();
+  bounceCount=0;
   clearHistory();
   initSpectro();
   clearTrail(); capturePositions=[]; initTrailBoard();
@@ -7996,6 +8544,40 @@ function initHeadlessRun(seed, cfg){
 // genuinely stopped changing); any other configured condition -> 'autostop-
 // other'; stepBudget exhausted with nothing triggered -> 'timeout'. Flag if
 // you want different groupings — easy to adjust, this is just a first pass.
+// §2: lightweight local-density hint — variance of piece-count across a
+// coarse fixed grid over the final board. Deliberately NOT reusing the
+// matdensity field-rendering code (buildFieldFrame etc.), since that's
+// coupled to the live fieldScale/FN display setting; this is a small
+// self-contained helper so the record doesn't depend on display config.
+function computeDensityHint(){
+  const GRID = 8; // fixed 8x8 coarse grid regardless of board size
+  const cellW = Math.max(1, N/GRID), cellH = Math.max(1, H/GRID);
+  const counts = new Array(GRID*GRID).fill(0);
+  for(let y=0;y<H;y++) for(let x=0;x<N;x++){
+    if(!board[idx(x,y)]) continue;
+    const gx = Math.min(GRID-1, Math.floor(x/cellW));
+    const gy = Math.min(GRID-1, Math.floor(y/cellH));
+    counts[gy*GRID+gx]++;
+  }
+  const mean = counts.reduce((a,b)=>a+b,0) / counts.length;
+  const variance = counts.reduce((a,b)=>a+(b-mean)*(b-mean),0) / counts.length;
+  return variance;
+}
+
+// §2: stddev of the capRate HIST_SERIES samples across the run. Relies on
+// the capCount reset fix in runHeadlessLoop above — without it these
+// samples monotonically climb and stddev would just reflect run length.
+function computeCapRateVolatility(){
+  const s = HIST_SERIES.capRate;
+  const n = s.count;
+  if(n < 2) return 0;
+  const vals = n < HIST_LEN ? s.buf.slice(0,n) : s.buf;
+  let sum=0; for(let i=0;i<n;i++) sum+=vals[i];
+  const mean = sum/n;
+  let sq=0; for(let i=0;i<n;i++){ const d=vals[i]-mean; sq+=d*d; }
+  return Math.sqrt(sq/n);
+}
+
 async function runHeadlessLoop(stepBudget){
   const startMs = Date.now();
   const record = {
@@ -8011,9 +8593,17 @@ async function runHeadlessLoop(stepBudget){
   };
   let sawOneColor = false;
   let t = 0;
+  let tensionSum = 0, tensionMax = 0, tensionSamples = 0;
   while(!_headlessStopRequested && t < stepBudget){
     const promoBefore = promotionCount;
     tickAdvancePhysics(1);
+    // §2 fix: capCount is a rolling ~20-step counter that only the live-only
+    // updateRight() resets; headless never called it, so capCount grew
+    // unbounded and corrupted the capRate samples in HIST_SERIES (which
+    // headless DOES populate, via tickAdvanceSample() below). Mirror the
+    // exact live-mode reset condition here so capRate means the same thing
+    // in both modes — no formula change, just parity.
+    if(stepCount-lastCapStep>=20){capCount=0;lastCapStep=stepCount;}
     const stepCaptures = captureLog.length;
     if(stepCaptures > 0 && record.firstCaptureStep===null) record.firstCaptureStep = stepCount;
     if(stepCaptures > record.largestCascade){ record.largestCascade = stepCaptures; record.largestCascadeStep = stepCount; }
@@ -8021,6 +8611,8 @@ async function runHeadlessLoop(stepBudget){
     if(promotionCount > promoBefore && record.firstPromotionStep===null) record.firstPromotionStep = stepCount;
     if(!sawOneColor && EQUIL_CHECKERS.onecolor()){ sawOneColor = true; record.firstExtinctionStep = stepCount; }
     tickAdvanceSample();
+    tensionSum += equilNoCaptureCount; tensionSamples++;
+    if(equilNoCaptureCount > tensionMax) tensionMax = equilNoCaptureCount;
     if(_headlessStopRequested){
       record.autostopStep = stepCount;
       record.autostopConditions = _lastEquilTriggeredConditions.slice();
@@ -8056,6 +8648,15 @@ async function runHeadlessLoop(stepBudget){
     pieces: finalPieces,
     elapsedMs,
     stepsPerSec: stepCount>0 && elapsedMs>0 ? Math.round(stepCount/(elapsedMs/1000)) : 0,
+  };
+  // §2: derived signals — volatility, tension/streak, movement friction,
+  // local density. See chess-gas-v1_3-tasks.md §2 for the schema rationale.
+  record.signals = {
+    capRateVolatility: computeCapRateVolatility(),
+    tensionMean: tensionSamples>0 ? tensionSum/tensionSamples : 0,
+    tensionMax,
+    rejectRate: stepCount>0 ? bounceCount/stepCount : 0,
+    densityHint: computeDensityHint(),
   };
   _headlessMode = false;
   return record;
@@ -8308,6 +8909,29 @@ buildIconGrid('ig-equilAction', [
   {val:'pause', g:'⏸', label:'stop'},
   {val:'reset', g:'↺', label:'reset'},
 ], 'equilAction');
+
+// §3 experiment-specific autostop — fully independent state (own DOM ids),
+// and no 'reset' option since a headless replicate can't reset mid-run.
+buildMultiIconGrid('ig-expEquilCondition', [
+  {val:'time',            g:'⏲', label:'time'},
+  {val:'nturns',          g:'N', label:'N steps'},
+  {val:'onecolor',        g:'●', label:'1 colour'},
+  {val:'caprate',         g:'↓', label:'low cap'},
+  {val:'nocap',           g:'⏱', label:'no cap N'},
+  {val:'pieceCountBelow', g:'#', label:'piece #'},
+  {val:'material',        g:'%', label:'occupancy'},
+  {val:'promotions',      g:'♛', label:'promos'},
+], 'expEquilConditions');
+
+buildIconGrid('ig-expEquilGate', [
+  {val:'or',  g:'∪', label:'any (OR)'},
+  {val:'and', g:'∩', label:'all (AND)'},
+], 'expEquilGate');
+
+buildIconGrid('ig-expEquilAction', [
+  {val:'none',  g:'—', label:'nothing'},
+  {val:'pause', g:'⏸', label:'stop'},
+], 'expEquilAction');
 
 buildIconGrid('ig-jitterScope', [
   {val:'pawns', g:'♟', label:'pawns'},
@@ -8727,14 +9351,18 @@ function _ssPaintAt(e){
 
 // Generic sub-tab switcher: wires a [data-subtab] button bar to show/hide
 // sibling .subtab-body elements sharing the same data-group.
-function wireSubTabs(groupName){
+function wireSubTabs(groupName, alwaysExclusive){
   const btns = document.querySelectorAll(`[data-subtab-group="${groupName}"]`);
   function applyVisibility(activeTab){
     const isPhone = document.body.dataset.layout === 'phone';
     document.querySelectorAll(`[data-subtab-body="${groupName}"]`).forEach(body=>{
-      // desktop: always show every sub-tab body (it's just a flat scrolling panel there)
+      // desktop: normally always show every sub-tab body (it's just a flat scrolling
+      // panel there) — except for groups passed alwaysExclusive=true, where the tabs
+      // are distinct workflow screens (e.g. experiments' SETUP/RESULTS/PROFILE/SAVED,
+      // which can't reasonably co-scroll — RESULTS alone can be a hundreds-of-rows
+      // table) rather than just categorized settings that make sense to co-scroll.
       // phone: only show the body matching the active sub-tab (sheet behaves like distinct screens)
-      body.classList.toggle('lp-hidden', isPhone && body.dataset.subtabId!==activeTab);
+      body.classList.toggle('lp-hidden', (isPhone||alwaysExclusive) && body.dataset.subtabId!==activeTab);
     });
   }
   btns.forEach(btn=>{
@@ -8753,6 +9381,7 @@ function wireSubTabs(groupName){
 wireSubTabs('settings');
 wireSubTabs('data');
 wireSubTabs('io');
+wireSubTabs('experiments', true);
 
 // ── PHONE LAYOUT ────────────────────────────────────────────────────────────
 (function(){
@@ -8819,6 +9448,7 @@ wireSubTabs('io');
     tab.addEventListener('click', ()=>{
       if(!phoneMode) return;
       const p = tab.dataset.panel;
+      if(p === 'experiments'){ toggleExperimentsMode(); return; }
       if(openPanel === p){
         closeSheet();
       } else {
