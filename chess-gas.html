@@ -99,6 +99,7 @@ body[data-layout="phone"] .step-counter{font-size:10px;padding:1px 4px}
 .section-hdr.open .arrow{transform:rotate(90deg)}
 .sec-body{padding:4px 6px;display:flex;flex-direction:column;gap:3px;background:var(--bg1)}
 .sec-body.hidden{display:none}
+#layoutPiecesB-row.hidden{display:none}
 .row{display:flex;align-items:center;gap:3px}
 .row label{font-size:var(--fs-lbl);color:var(--text3);letter-spacing:.02em;min-width:40px;flex-shrink:0;font-weight:600}
 input[type=range]{accent-color:var(--accent2);flex:1;min-width:0;height:10px}
@@ -632,7 +633,10 @@ body[data-layout="phone"] #ph-backdrop.ph-open{display:block}
             <option value="border">border</option>
             <option value="gradient">gradient</option>
           </select>
-          <div style="font-size:var(--fs-sm);color:var(--text3);padding:2px 0">pieces</div>
+          <div class="row" style="gap:4px;align-items:center">
+            <div style="font-size:var(--fs-sm);color:var(--text3);padding:2px 0;flex:1">pieces (white)</div>
+            <label style="display:flex;align-items:center;gap:2px;font-size:var(--fs-sm);color:var(--text3)"><input type="checkbox" id="lockPieces" checked> same for black</label>
+          </div>
           <div id="ig-layoutPieces"></div>
           <select id="layoutPieces" style="display:none">
             <option value="all" selected>all</option>
@@ -644,6 +648,20 @@ body[data-layout="phone"] #ph-backdrop.ph-open{display:block}
             <option value="queens">queens</option>
             <option value="kings">kings</option>
           </select>
+          <div id="layoutPiecesB-row" class="hidden">
+            <div style="font-size:var(--fs-sm);color:var(--text3);padding:2px 0">pieces (black)</div>
+            <div id="ig-layoutPiecesB"></div>
+            <select id="layoutPiecesB" style="display:none">
+              <option value="all" selected>all</option>
+              <option value="pawns">pawns</option>
+              <option value="heavy">heavy</option>
+              <option value="knights">knights</option>
+              <option value="bishops">bishops</option>
+              <option value="rooks">rooks</option>
+              <option value="queens">queens</option>
+              <option value="kings">kings</option>
+            </select>
+          </div>
           <div style="font-size:var(--fs-sm);color:var(--text3);padding:2px 0">colour</div>
           <div id="ig-layoutColour"></div>
           <select id="layoutColour" style="display:none">
@@ -693,13 +711,14 @@ body[data-layout="phone"] #ph-backdrop.ph-open{display:block}
           <option value="white">white only</option>
           <option value="black">black only</option>
         </select>
-        <div class="row"><label>collision<span class="tip tip-left"><span class="tip-icon">?</span><span class="tip-box">What happens on capture. Capture = standard chess capture. Elastic = bounce, inelastic = capture with prob p, annihilate = both removed, exchange = swap, pacifist = push, convert = flip colour, wololo = bishops convert, explode = AoE annihilation.</span></span></label></div>
+        <div class="row"><label>collision<span class="tip tip-left"><span class="tip-icon">?</span><span class="tip-box">What happens on capture. Capture = standard chess capture. Elastic = bounce, inelastic = capture with prob p, annihilate = both removed, fusion = attacker absorbs & grows stronger, exchange = swap, pacifist = push, convert = flip colour, wololo = bishops convert, explode = AoE annihilation.</span></span></label></div>
         <div id="ig-collisionMode"></div>
         <select id="collisionMode" style="display:none">
           <option value="capture" selected>capture</option>
           <option value="elastic">elastic</option>
           <option value="inelastic">inelastic</option>
           <option value="annihilate">annihilate</option>
+          <option value="fusion">fusion</option>
           <option value="explode">explode</option>
           <option value="exchange">exchange</option>
           <option value="pacifist">pacifist</option>
@@ -1059,6 +1078,14 @@ body[data-layout="phone"] #ph-backdrop.ph-open{display:block}
         </div>
         <div class="row" style="gap:4px">
           <button class="mini-btn" id="ssClearBtn" style="flex:1">✕ CLEAR SOURCES</button>
+        </div>
+        <div class="row-sep"></div>
+        <div class="row"><label>auto layout<span class="tip tip-left"><span class="tip-icon">?</span><span class="tip-box">Bakes a starting source/sink arrangement in at reset time, instead of needing to paint one by hand every time. You can still paint more on top afterward.</span></span></label>
+          <select class="p-sel" id="ssAutoLayout">
+            <option value="none" selected>none (paint by hand)</option>
+            <option value="leftRightFlow">left source, right sink</option>
+            <option value="centerOut">source ring, sink at edges</option>
+          </select>
         </div>
       </div>
     </div>
@@ -1956,24 +1983,27 @@ const INITS={
     }
   },
   checkerboard(){
-    // 8×8 blocks, alternating colour in 2D
-    const tiles=Math.ceil(N/8);
-    for(let ty=0;ty<tiles;ty++) for(let tx=0;tx<tiles;tx++){
+    // 8×8 blocks, alternating colour in 2D. tilesX/tilesY computed
+    // separately since a rectangular board (N !== H) needs different tile
+    // counts per axis — using one shared count for both previously left
+    // everything past N's extent blank on tall/wide boards.
+    const tilesX=Math.ceil(N/8), tilesY=Math.ceil(H/8);
+    for(let ty=0;ty<tilesY;ty++) for(let tx=0;tx<tilesX;tx++){
       const bx=tx*8,by=ty*8;
       const white=(tx+ty)%2===0;
       for(let x=0;x<8&&bx+x<N;x++){
         const rowBot=by+7,rowPW=by+6,rowTop=by,rowPB=by+1;
-        if(rowBot>=N||rowTop>=N)continue;
+        if(rowBot>=H||rowTop>=H)continue; // row/Y bounds must check against H, not N
         if(white){
-          board[idx(bx+x,Math.min(rowBot,N-1))]=INIT_RANK[x];
-          board[idx(bx+x,Math.min(rowPW,N-1)) ]=W_PAWN;
+          board[idx(bx+x,Math.min(rowBot,H-1))]=INIT_RANK[x];
+          board[idx(bx+x,Math.min(rowPW,H-1)) ]=W_PAWN;
           board[idx(bx+x,rowTop)]=INIT_RANK[x];
-          if(rowPB<N)board[idx(bx+x,rowPB)]=W_PAWN;
+          if(rowPB<H)board[idx(bx+x,rowPB)]=W_PAWN;
         } else {
-          board[idx(bx+x,Math.min(rowBot,N-1))]=INIT_RANK[x]+8;
-          board[idx(bx+x,Math.min(rowPW,N-1)) ]=B_PAWN;
+          board[idx(bx+x,Math.min(rowBot,H-1))]=INIT_RANK[x]+8;
+          board[idx(bx+x,Math.min(rowPW,H-1)) ]=B_PAWN;
           board[idx(bx+x,rowTop)]=INIT_RANK[x]+8;
-          if(rowPB<N)board[idx(bx+x,rowPB)]=B_PAWN;
+          if(rowPB<H)board[idx(bx+x,rowPB)]=B_PAWN;
         }
       }
     }
@@ -2141,7 +2171,7 @@ const PATTERNS = {
   },
 };
 
-function placeLayout(patternName, pieceSetName, colourName, densityOverride){
+function placeLayout(patternName, pieceSetNameW, colourName, densityOverride, pieceSetNameB){
   const density = densityOverride!=null ? parseInt(densityOverride)/100
                 : parseInt(document.getElementById('density')?.value||40)/100;
   const pattern = PATTERNS[patternName] || PATTERNS.uniform;
@@ -2149,7 +2179,7 @@ function placeLayout(patternName, pieceSetName, colourName, densityOverride){
   const cells = pattern(density);
   cells.forEach((c,i)=>{
     const white = arrange(i, cells.length, c.x, c.y, c.gid);
-    board[idx(c.x,c.y)] = pieceFromPool(pieceSetName, white);
+    board[idx(c.x,c.y)] = pieceFromPool(white ? pieceSetNameW : (pieceSetNameB ?? pieceSetNameW), white);
   });
 }
 
@@ -2475,6 +2505,25 @@ function step(){
       board[si2]=EMPTY; board[di]=EMPTY;
       whiteTurn=!whiteTurn; stepCount++; return;
     }
+    if(coll==='fusion'){
+      // The creation counterpart to annihilate: the attacker absorbs the
+      // captured piece and grows stronger instead of either vanishing.
+      // pawn -> knight/bishop -> rook -> queen, capped there. Kings never
+      // fuse-upgrade (there's usually only one or a few per side, and
+      // losing king semantics would break other code that assumes they
+      // persist).
+      flashMap[di]=1.0;
+      captureLog.push({tx,ty,attacker:piece,victim:captured,fused:true});
+      const t = ptype(piece);
+      let newType = t;
+      if(t===1) newType = random()<0.5?2:3;      // pawn -> knight or bishop
+      else if(t===2||t===3) newType = 4;         // knight/bishop -> rook
+      else if(t===4) newType = 5;                // rook -> queen
+      // queen(5) and king(6) stay the same type — still captures normally
+      if(mfpDist){mfpDist[si2]=0;}
+      board[si2]=EMPTY; board[di]=isWhite(piece) ? newType : newType+8;
+      whiteTurn=!whiteTurn; stepCount++; return;
+    }
     if(coll==='explode'){
       // Annihilation plus area-of-effect: clears every piece within radius of impact
       const radius = _explodeRadius;
@@ -2784,15 +2833,15 @@ function buildEffectsGrid(containerId, items){
 // ── SETTINGS SERIALISATION ──────────────────────────────────────────────────
 const SETTINGS_SCHEMA = {
   seed: ['seedInput', {id:'seedPin', type:'check'}],
-  layout: ['initsel','layoutPattern','layoutPieces','layoutColour','density','nsel','nsel-h',
-           {id:'lockWH', type:'check'}],
+  layout: ['initsel','layoutPattern','layoutPieces','layoutPiecesB','layoutColour','density','nsel','nsel-h',
+           {id:'lockWH', type:'check'}, {id:'lockPieces', type:'check'}],
   physics: ['topoMode','speedLimit','collisionMode','inelasticP','explodeRadius','promoMode',
             {id:'decayMode'},'decayRate','moveMode2','betaSlider','potentialMode','potPolarity',
             {id:'potValueWeight', type:'check'},'potPreset','pot-param','dynPotMode','dynFreq','dynAmp',
             'pieceGenMode','pieceGenStrength','pieceGenRadius'],
   autostop: ['equilConditions','equilGate','equilAction','equilNoCap','equilMatPct','equilNTurns','equilSens',
              'equilTimeSec','equilPieceCount','equilPromotions'],
-  plop: ['ssRate','ssSpawnType','ssBrushMode','brushStr','brushR'],
+  plop: ['ssRate','ssSpawnType','ssBrushMode','brushStr','brushR','ssAutoLayout'],
   display: ['glyphSet','fontSizeSlider','viewmode','fieldMode','fieldRes','fieldOpacitySlider',
             'fieldGenericCol','flowSpecies', {id:'showFlow', type:'check'},
             'trailMode','trailLen','colLightSq','colDarkSq','colFlash','colPotRep','colPotAtt','paletteSat',
@@ -3669,24 +3718,106 @@ function snapshotSettingsGroups(groups){
   }
   return snap;
 }
+// Icon-grid fields that use buildMultiIconGrid (comma-separated membership)
+// rather than buildIconGrid (single value) — need different click-simulation
+// logic below since toggling membership isn't the same as picking one value.
+const MULTI_ICON_GRID_FIELDS = new Set(['equilConditions','expEquilConditions']);
+// Container naming is 'ig-'+id for every icon-grid field EXCEPT these two,
+// where the container is named after the singular concept ("Condition")
+// while the underlying field holds a plural comma-separated list
+// ("Conditions") — a real mismatch, not a typo to normalize away.
+const ICON_GRID_CONTAINER_OVERRIDES = {equilConditions:'ig-equilCondition', expEquilConditions:'ig-expEquilCondition'};
+
 // Shared write primitive: unconditionally applies every {id:{type,value}}
-// entry in a snapshot, dispatching change/input like the UI itself would.
-// Guarded by _applyingProgrammatically so the seed+ override-tracking
-// listener (below, wired via wireSeedPlusOverrideTracking) doesn't mistake
-// these programmatic writes for a manual edit.
+// entry in a snapshot, dispatching change/input like the UI itself would —
+// EXCEPT for icon-grid-driven fields (anything with a matching #ig-<id>
+// container), which actually click the matching button instead of writing
+// the hidden select/input directly. This isn't cosmetic: buildIconGrid's/
+// buildMultiIconGrid's onChange callback — where real per-field setup logic
+// lives for several fields — is only invoked from inside the click handler
+// itself, never from the 'change' listener that merely re-syncs the button
+// highlighting. Writing the hidden field and dispatching a synthetic
+// 'change' event was a second, incomplete code path that looked like it
+// worked (visuals updated) while silently skipping that logic — reusing
+// the real click handler is the only way to guarantee parity with actual
+// user interaction, since it's the same code, not a reimplementation of it.
+//
+// Guarded by _applyingProgrammatically (seed+ override-tracking, see below)
+// AND _applyingExperiment — a pre-existing app-wide flag that several
+// fields' own change listeners already check (initsel/layoutPattern/
+// layoutPieces/layoutColour/nsel/nsel-h call reset() directly unless it's
+// set; potPreset force-overrides moveMode2 unless it's set). Without it,
+// applying a multi-field snapshot fired a cascade of premature, partially-
+// applied reset() calls.
 let _applyingProgrammatically = false;
 function applySettingsSnapshot(snap){
   _applyingProgrammatically = true;
-  for(const id in snap){
-    const el=document.getElementById(id);
-    if(!el) continue;
-    const {type,value}=snap[id];
-    if(type==='check') el.checked=value; else el.value=value;
-    el.dispatchEvent(new Event('change'));
-    el.dispatchEvent(new Event('input'));
+  _applyingExperiment = true;
+  try{
+    // initsel must be applied LAST: layoutPattern/layoutPieces/layoutColour's
+    // onChange callbacks all force initsel='custom' as a side effect,
+    // regardless of what value THEY'RE being set to (by app design — picking
+    // a specific layout pattern implies custom mode). Applying defaults
+    // (which sets initsel back to 'standard' but ALSO touches those three
+    // fields, since they're just other entries in the same schema group)
+    // was silently clobbering initsel back to 'custom' whenever those three
+    // happened to be processed afterward in plain key order.
+    const ids = Object.keys(snap);
+    const initselIdx = ids.indexOf('initsel');
+    if(initselIdx > -1){ ids.splice(initselIdx,1); ids.push('initsel'); }
+    for(const id of ids){
+      try{
+        const el=document.getElementById(id);
+        if(!el) continue;
+        const {type,value}=snap[id];
+        const grid = document.getElementById(ICON_GRID_CONTAINER_OVERRIDES[id] || ('ig-'+id));
+        if(grid){
+          if(MULTI_ICON_GRID_FIELDS.has(id)){
+            const targetSet = new Set(String(value).split(',').filter(Boolean));
+            const currentSet = new Set((el.value||'').split(',').filter(Boolean));
+            // Add missing values FIRST, then remove extras — the grid's own
+            // click handler refuses to remove the last active item
+            // (set.size>1 check), so removing before adding can get stuck.
+            for(const v of targetSet) if(!currentSet.has(v)){
+              const btn = grid.querySelector(`.ic-btn[data-val="${CSS.escape(v)}"]`);
+              if(btn) btn.click();
+            }
+            for(const v of currentSet) if(!targetSet.has(v)){
+              const btn = grid.querySelector(`.ic-btn[data-val="${CSS.escape(v)}"]`);
+              if(btn) btn.click();
+            }
+          } else {
+            const btn = grid.querySelector(`.ic-btn[data-val="${CSS.escape(String(value))}"]`);
+            if(btn) btn.click();
+          }
+          continue;
+        }
+        if(type==='check') el.checked=value; else el.value=value;
+        el.dispatchEvent(new Event('change'));
+        el.dispatchEvent(new Event('input'));
+      } catch(fieldErr){
+        // One field misbehaving shouldn't take every other field down with
+        // it, and definitely shouldn't leave the guards below stuck (see
+        // the finally block) — surfaced via the exp/io status text since
+        // console access isn't reliably available on every device this
+        // runs on.
+        console.error(`applySettingsSnapshot: field "${id}" failed`, fieldErr);
+        _lastSettingsSnapshotError = `field "${id}": ${fieldErr.message||fieldErr}`;
+      }
+    }
+  } finally {
+    // MUST run even if something above threw and wasn't caught by the
+    // per-field try/catch (e.g. a genuinely unexpected error) — these
+    // guards getting stuck at true is exactly what silently disables every
+    // settings-field change listener app-wide (initsel/nsel/etc. all check
+    // _applyingExperiment and no-op if it's true), which looked like AND
+    // was mistaken for a completely different bug the first few times
+    // this surfaced.
+    _applyingProgrammatically = false;
+    _applyingExperiment = false;
   }
-  _applyingProgrammatically = false;
 }
+let _lastSettingsSnapshotError = null;
 function restoreSettingsPartially(snap, pct){
   const toApply = {};
   for(const id in snap) if(diceRandom()*100 >= pct) toApply[id] = snap[id];
@@ -3811,11 +3942,40 @@ function getDefaultsSnapshot(){
   }
   return (_defaultsSnapshotCache = snap);
 }
+// id -> 'check'|'value' lookup, built once from SETTINGS_SCHEMA. Used to
+// convert seed+ overrides (stored as raw {id:value} pairs — see
+// wireSeedPlusOverrideTracking below, and every BUILT_IN_PRESETS entry)
+// into the {id:{type,value}} shape applySettingsSnapshot expects (matching
+// getDefaultsSnapshot()/snapshotSettingsGroups()'s shape). Passing raw
+// values straight into applySettingsSnapshot silently destructured
+// undefined type/value out of each string/boolean, which is what was
+// actually blanking nsel/nsel-h and other overridden fields — a real,
+// confirmed bug, not a guess.
+let _fieldTypeLookupCache = null;
+function getFieldTypeLookup(){
+  if(_fieldTypeLookupCache) return _fieldTypeLookupCache;
+  const lookup = {};
+  for(const group in SETTINGS_SCHEMA){
+    for(const entry of SETTINGS_SCHEMA[group]){
+      const id = typeof entry==='string' ? entry : entry.id;
+      lookup[id] = typeof entry==='string' ? 'value' : (entry.type||'value');
+    }
+  }
+  return (_fieldTypeLookupCache = lookup);
+}
+function wrapOverridesWithType(overrides){
+  const lookup = getFieldTypeLookup();
+  const wrapped = {};
+  for(const id in overrides) wrapped[id] = {type: lookup[id]||'value', value: overrides[id]};
+  return wrapped;
+}
 // Force the capture NOW, eagerly — this line runs during initial script
 // execution, after wHue/bHue exist (declared ~line 3047, well above here)
 // and before any user interaction is possible, so it reflects pure
 // HTML-authored defaults regardless of what the user does afterward.
-getDefaultsSnapshot();
+// UPDATE: actually forced at the true end of the script instead — see
+// there for why (this position turned out to be provably too early, ahead
+// of some init/wiring code that a preset-loading regression traced back to).
 
 function captureCurrentSeedPlus(){
   return {seed:_seedPlusBase.seed, mode:_seedPlusBase.mode, pct:_seedPlusBase.pct, overrides:{..._seedPlusOverrides}};
@@ -3833,7 +3993,7 @@ function applySeedPlus(sp, preserveView){
     seedForRun(seed);
     runRandomizeWithPct(sp.mode || 'both', sp.pct ?? 100);
   }
-  if(sp.overrides) applySettingsSnapshot(sp.overrides);
+  if(sp.overrides) applySettingsSnapshot(wrapOverridesWithType(sp.overrides));
   if(typeof sp.wHue === 'number') wHue = sp.wHue;
   if(typeof sp.bHue === 'number') bHue = sp.bHue;
   const inputEl = document.getElementById('seedInput');
@@ -3880,9 +4040,17 @@ function runRandomizeWithPct(mode, pct){
                : ['display'];
   const snap = pct<100 ? snapshotSettingsGroups(groups) : null;
   _applyingProgrammatically = true;
-  if(mode==='both'||mode==='physics') randomPhysics();
-  if(mode==='both'||mode==='display') fxRandomize();
-  _applyingProgrammatically = false;
+  _applyingExperiment = true; // randomPhysics() writes initsel/layoutPattern/etc directly - same premature-reset issue applySettingsSnapshot guards against
+  try{
+    if(mode==='both'||mode==='physics') randomPhysics();
+    if(mode==='both'||mode==='display') fxRandomize();
+  } catch(err){
+    console.error('runRandomizeWithPct failed', err);
+    _lastSettingsSnapshotError = `randomize (${mode}): ${err.message||err}`;
+  } finally {
+    _applyingProgrammatically = false;
+    _applyingExperiment = false;
+  }
   if(snap) restoreSettingsPartially(snap, pct);
 }
 
@@ -4453,7 +4621,8 @@ function buildBoard(cfg){
       cfg ? (cfg.layout.layoutPattern||'uniform') : (document.getElementById('layoutPattern')?.value||'uniform'),
       cfg ? (cfg.layout.layoutPieces||'all') : (document.getElementById('layoutPieces')?.value||'all'),
       cfg ? (cfg.layout.layoutColour||'interleaved') : (document.getElementById('layoutColour')?.value||'interleaved'),
-      cfg ? cfg.layout.density : null
+      cfg ? cfg.layout.density : null,
+      cfg ? (cfg.layout.layoutPiecesB || cfg.layout.layoutPieces || 'all') : (document.getElementById('layoutPiecesB')?.value||'all')
     );
   } else {
     INITS[initVal]();
@@ -4753,7 +4922,7 @@ let _topoMode='bounded', _speedLimit=0, _potMode='dest', _collMode='capture', _i
 // place all of these get populated from DOM in live mode, and
 // applyPhysicsConfig() for the headless equivalent.
 let _decayMode='none', _decayRate=0.002, _explodeRadius=2;
-let _ssRate=0.5, _ssSpawnType='pawn';
+let _ssRate=0.5, _ssSpawnType='pawn', _ssAutoLayout='none';
 let _pieceGenMode='none', _pieceGenStrength=0.5, _pieceGenRadius=3;
 let _dynPotMode='none', _dynFreq=0.0001, _dynAmp=0.5;
 let _equilAction='none', _equilConditions='caprate', _equilGate='or', _equilTimeSec=30,
@@ -4778,6 +4947,7 @@ function cacheLiveDOMPhysicsVars(){
   _explodeRadius = parseInt(document.getElementById('explodeRadius')?.value||2);
   _ssRate = parseInt(document.getElementById('ssRate')?.value||50)/100;
   _ssSpawnType = document.getElementById('ssSpawnType')?.value||'pawn';
+  _ssAutoLayout = document.getElementById('ssAutoLayout')?.value||'none';
   _pieceGenMode = document.getElementById('pieceGenMode')?.value || 'none';
   _pieceGenStrength = parseInt(document.getElementById('pieceGenStrength')?.value||50)/100;
   _pieceGenRadius = parseInt(document.getElementById('pieceGenRadius')?.value||3);
@@ -4858,6 +5028,7 @@ function applyPhysicsConfig(cfg){
   _dynAmp = parseInt(p.dynAmp ?? 50)/100;
   _ssRate = parseInt(pl.ssRate ?? 50)/100;
   _ssSpawnType = pl.ssSpawnType ?? 'pawn';
+  _ssAutoLayout = pl.ssAutoLayout ?? 'none';
   _equilAction = a.equilAction ?? 'none';
   _equilConditions = a.equilConditions ?? 'caprate';
   _equilGate = a.equilGate ?? 'or';
@@ -4981,7 +5152,7 @@ function reset(preserveView=false, forcedSeed=null){
   // count initial material after placement
   setTimeout(()=>{ equilInitialMat=0; for(let i=0;i<N*H;i++) if(board[i]) equilInitialMat++; },0);
   phaseBuf.pos=0; phaseBuf.count=0; phaseLastStep=0;
-  initMFP();  initSourceSinks();
+  initMFP();  initSourceSinks(); applySourceSinkAutoLayout();
   dynPotBase=null; dynPhase=0;
   pieceGenMap=null;
   selectedCell=null; trajectoryBuf=[];
@@ -5963,6 +6134,35 @@ let sourceSinkRate = 50; // spawn/remove every N steps
 let ssLastStep = 0;
 
 function initSourceSinks(){ sourceSinkMap=new Int8Array(N*H); ssLastStep=0; }
+// Bakes a starting source/sink arrangement into sourceSinkMap at reset time
+// — previously the only way to place these was hand-painting via the EDIT
+// tab, which meant a preset/seed+ value had no way to reproduce a specific
+// source/sink setup (see the "source & sink flow" preset, which used to
+// just tell you to paint it yourself every time you loaded it).
+function applySourceSinkAutoLayout(){
+  // Live: reset() can run before cacheLiveDOMPhysicsVars() has synced this
+  // frame, so _ssAutoLayout might be stale — read the DOM directly instead.
+  // Headless: the DOM may not reflect this run's cfg at all (applyPhysicsConfig
+  // writes to shadow vars only, deliberately never touches the DOM), so the
+  // shadow var is the only correct source there.
+  const mode = _headlessMode ? _ssAutoLayout : (document.getElementById('ssAutoLayout')?.value || 'none');
+  if(mode === 'none' || !sourceSinkMap) return;
+  if(mode === 'leftRightFlow'){
+    const bandW = Math.max(1, Math.round(N*0.08));
+    for(let y=0;y<H;y++){
+      for(let x=0;x<bandW;x++) sourceSinkMap[idx(x,y)] = 1;        // white source, left edge
+      for(let x=N-bandW;x<N;x++) sourceSinkMap[idx(x,y)] = -1;     // sink, right edge
+    }
+  } else if(mode === 'centerOut'){
+    const cx=N/2, cy=H/2, ringR=Math.max(1,Math.round(Math.min(N,H)*0.08));
+    const edgeThick = Math.max(1, Math.round(Math.min(N,H)*0.04));
+    for(let y=0;y<H;y++) for(let x=0;x<N;x++){
+      const r = Math.sqrt((x-cx)**2+(y-cy)**2);
+      if(Math.abs(r-ringR)<1) sourceSinkMap[idx(x,y)] = 1;         // white source ring near centre
+      else if(x<edgeThick||x>=N-edgeThick||y<edgeThick||y>=H-edgeThick) sourceSinkMap[idx(x,y)] = -1; // sink at the board edges
+    }
+  }
+}
 
 function processSourcesSinks(){
   if(!sourceSinkMap) return;
@@ -6132,26 +6332,42 @@ function applyDynamicPotential(stepsThisFrame){
 const BUILT_IN_PRESETS = [
   {name:"default board", desc:"8×8, standard rules. The plain default to start from.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{}}},
   {name:"big game of chess", desc:"256×256, standard chess layout, scaled until the opening position itself becomes a gas.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"nsel":"256","nsel-h":"256"}}},
-  {name:"spiral fog", desc:"256×512, white spiralling out of a black perimeter, very low speed limit, permanent paint trail. Pawns peel off and streak; the heavy pieces hang back and fog the centre.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"initsel":"custom","layoutPattern":"spiral","layoutColour":"segregated","density":"70","nsel":"256","nsel-h":"512","lockWH":false,"speedLimit":"1","trailMode":"paint"}}},
-  {name:"piece-induced gravity", desc:"White pieces repel, black pieces attract — each piece carries its own moving halo. Boltzmann move mode so pieces actually climb and slide the gradients they create in each other.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"initsel":"custom","nsel":"64","nsel-h":"64","collisionMode":"elastic","moveMode2":"boltzmann","betaSlider":"6","pieceGenMode":"wRepBAtt","pieceGenStrength":"60","pieceGenRadius":"4"}}},
-  {name:"convert front", desc:"Captured pieces flip to the captor's colour. Checkerboard start gives a dense symmetric front on a 128×128 board. Low speed limit keeps the conversion wave slow enough to watch colour spread like a tide.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"initsel":"checkerboard","nsel":"128","nsel-h":"128","speedLimit":"1","collisionMode":"convert"}}},
-  {name:"the big bang", desc:"Dense uniform scatter, explode collisions, wide blast radius. Chain explosions ripple through the crowd. When pawn walls stall, use the jiggle button (⇄) a few times to free them.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"initsel":"custom","density":"65","collisionMode":"explode","explodeRadius":"4"}}},
-  {name:"gravity well orbits", desc:"A single deep gravity well in the centre, Boltzmann response, blur trail. Pieces fall in, sling around, and slowly settle.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"collisionMode":"elastic","moveMode2":"boltzmann","betaSlider":"8","potPreset":"gravityWell","trailMode":"blur"}}},
-  {name:"source & sink flow", desc:"Empty board. Go to the EDIT tab and paint white sources on one side and a black sink on the other (shift-drag to paint). Produces a steady non-equilibrium flow that never settles.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"initsel":"empty","density":"0","collisionMode":"elastic","ssRate":"90"}}},
-  {name:"bishops on a torus", desc:"Bishops only on a toroidal board — diagonals wrap instead of reflecting. Watch colour-locked diagonal corridors form, collide and recombine. Blur trail shows the path structure clearly.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"initsel":"custom","layoutPieces":"bishops","density":"25","nsel":"64","nsel-h":"64","topoMode":"toroidal","trailMode":"blur"}}},
-  {name:"percolation game", desc:"Dense gravel potential, Boltzmann response, low speed limit. Pieces cluster in valleys and slowly percolate through gaps. An early-phase snapshot worth watching: gravel traps pawns while heavy pieces punch through.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"initsel":"custom","density":"40","nsel":"64","nsel-h":"64","speedLimit":"2","moveMode2":"boltzmann","betaSlider":"3","potPreset":"gravel","pot-param":"60"}}},
-  {name:"pawn walls", desc:"Two pawn walls face each other across a 128×128 board over dense gravel. Nothing moves at first — use the jiggle button (⇄) repeatedly until the front starts dissolving. The harder you jiggle, the faster it breaks.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"initsel":"custom","layoutPattern":"wall","layoutPieces":"pawns","layoutColour":"segregated","density":"55","nsel":"128","nsel-h":"128","potPreset":"gravel","pot-param":"75"}}},
-  {name:"well-hopper", desc:"Periodic potential lattice with a fast rotating modulation on top. Pieces settle into local energy minima, then the sweeping field kicks them into the next well. Turn on the field overlay to see the landscape moving.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"initsel":"custom","density":"25","nsel":"64","nsel-h":"64","collisionMode":"elastic","moveMode2":"boltzmann","betaSlider":"8","potPreset":"periodic","dynPotMode":"rotate","dynFreq":"35","dynAmp":"85","fieldMode":"potential","fieldOpacitySlider":"40"}}},
+  {name:"spiral fog", desc:"256×512, white spiralling out of a black perimeter, very low speed limit, permanent paint trail. Pawns peel off and streak; the heavy pieces hang back and fog the centre.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"nsel":"256","nsel-h":"512","lockWH":false,"initsel":"custom","layoutPattern":"spiral","layoutColour":"segregated","speedLimit":"1","trailMode":"paint"}}},
+  {name:"piece-induced gravity", desc:"White pieces repel, black pieces attract — each piece carries its own moving halo. Boltzmann move mode so pieces actually climb and slide the gradients they create in each other.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"pieceGenMode":"wRepBAtt","pieceGenStrength":"70","moveMode2":"boltzmann","betaSlider":"4"}}},
+  {name:"convert front", desc:"Captured pieces flip to the captor's colour. Checkerboard start gives a dense symmetric front on a 128×128 board. Low speed limit keeps the conversion wave slow enough to watch colour spread like a tide.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"collisionMode":"convert","initsel":"checkerboard","nsel":"128","nsel-h":"128","speedLimit":"2"}}},
+  {name:"the big bang", desc:"Dense uniform scatter, explode collisions, wide blast radius. Chain explosions ripple through the crowd. When pawn walls stall, use the jiggle button (⇄) a few times to free them.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"initsel":"custom","layoutPattern":"uniform","density":"70","collisionMode":"explode","explodeRadius":"6"}}},
+  {name:"gravity well orbits", desc:"A single deep gravity well in the centre, Boltzmann response, blur trail. Pieces fall in, sling around, and slowly settle.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"nsel":"128","nsel-h":"128","potPreset":"gravityWell","pot-param":"90","moveMode2":"boltzmann","trailMode":"blur"}}},
+  {name:"source & sink flow", desc:"Empty board. Go to the EDIT tab and paint white sources on one side and a black sink on the other (shift-drag to paint). Produces a steady non-equilibrium flow that never settles.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"initsel":"empty","density":"0","collisionMode":"elastic","ssAutoLayout":"leftRightFlow","ssRate":"70"}}},
+  {name:"bishops on a torus", desc:"Bishops only on a toroidal board — diagonals wrap instead of reflecting. Watch colour-locked diagonal corridors form, collide and recombine. Blur trail shows the path structure clearly.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"initsel":"custom","layoutPattern":"uniform","layoutPieces":"bishops","topoMode":"toroidal","trailMode":"blur"}}},
+  {name:"percolation game", desc:"Dense gravel potential, Boltzmann response, low speed limit. Pieces cluster in valleys and slowly percolate through gaps. An early-phase snapshot worth watching: gravel traps pawns while heavy pieces punch through.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"nsel":"64","nsel-h":"64","potPreset":"gravel","pot-param":"30","moveMode2":"boltzmann","speedLimit":"2"}}},
+  {name:"pawn walls", desc:"Two pawn walls face each other across a 128×128 board over dense gravel. Nothing moves at first — use the jiggle button (⇄) repeatedly until the front starts dissolving. The harder you jiggle, the faster it breaks.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"nsel":"128","nsel-h":"128","initsel":"custom","layoutPattern":"wall","layoutPieces":"pawns","layoutColour":"segregated","potPreset":"gravel","pot-param":"35"}}},
+  {name:"well-hopper", desc:"Periodic potential lattice with a fast rotating modulation on top. Pieces settle into local energy minima, then the sweeping field kicks them into the next well. Turn on the field overlay to see the landscape moving.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"potPreset":"periodic","pot-param":"25","dynPotMode":"rotate","dynFreq":"60","fieldMode":"potential"}}},
   {name:"barrier breakthrough", desc:"A strong soft barrier across the centre with differential polarity. White pieces are repelled and pile up on their side; black pieces see the field inverted and flow through freely. A clean two-species separation driven by field charge alone.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"initsel":"armies","layoutPattern":"wall","layoutColour":"splitHalf","nsel":"64","nsel-h":"64","speedLimit":"3","collisionMode":"elastic","moveMode2":"boltzmann","betaSlider":"6","potPolarity":"differential","potPreset":"barrier1","pot-param":"3","pieceGenMode":"wRepBAtt","pieceGenStrength":"100","pieceGenRadius":"1","fieldMode":"potential","fieldOpacitySlider":"35"}}},
-  {name:"elastic gas", desc:"Pure elastic collisions on a torus — no captures, no material loss, conserved piece count. The cleanest realisation of chess-as-lattice-gas: a closed equilibrium system that never runs down.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"initsel":"custom","nsel":"64","nsel-h":"64","topoMode":"toroidal","collisionMode":"elastic"}}},
+  {name:"elastic gas", desc:"Pure elastic collisions on a torus — no captures, no material loss, conserved piece count. The cleanest realisation of chess-as-lattice-gas: a closed equilibrium system that never runs down.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"collisionMode":"elastic","topoMode":"toroidal"}}},
+  {name:"matter & antimatter", desc:"Dense, well-mixed population under annihilate collisions — every contact removes BOTH pieces. Watch total population decline via mutual destruction rather than any equilibrium-seeking or explosive dynamics.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"nsel":"64","nsel-h":"64","initsel":"custom","layoutPattern":"uniform","density":"60","layoutColour":"interleaved","collisionMode":"annihilate"}}},
+  {name:"passing through", desc:"Two dense colour blocks under exchange collisions — pieces swap positions on contact instead of capturing or bouncing. Population never changes; watch persistent interpenetration and mixing with zero attrition, the conceptual opposite of matter & antimatter.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"nsel":"64","nsel-h":"64","initsel":"custom","layoutPattern":"wall","layoutColour":"segregated","collisionMode":"exchange"}}},
+  {name:"wololo", desc:"Dense mixed population under wololo collisions — only bishops convert on contact (bishops as the priests of chess), everything else captures normally. Watch bishops spread their colour like a slower, patchier version of convert front.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"nsel":"64","nsel-h":"64","initsel":"custom","layoutPattern":"uniform","density":"60","layoutColour":"interleaved","collisionMode":"wololo"}}},
+  {name:"power creep", desc:"Dense population under fusion collisions — the attacker absorbs whatever it captures and grows stronger (pawn to knight/bishop to rook to queen), instead of either piece vanishing. Watch a shrinking population of increasingly powerful survivors.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"nsel":"32","nsel-h":"32","initsel":"custom","layoutPattern":"uniform","density":"70","collisionMode":"fusion"}}},
+  {name:"knights vs rooks", desc:"White plays knights, black plays rooks — asymmetric pieces, standard captures. A genuine matchup between two piece types rather than a mirror match, made possible by the separate white/black piece-pool controls in ADVANCED LAYOUT.", seedPlus:{"seed":"0","mode":null,"pct":null,"overrides":{"nsel":"32","nsel-h":"32","initsel":"custom","layoutPattern":"uniform","density":"40","layoutColour":"interleaved","lockPieces":false,"layoutPieces":"knights","layoutPiecesB":"rooks"}}},
 ];
 function applyPresetSeedPlus(sp){
   const ta = document.getElementById('io-settings-text');
   if(ta) ta.value = JSON.stringify(sp); // mirrored here for anyone who wants to inspect/copy it
-  applySeedPlus(sp, true);
+  _lastSettingsSnapshotError = null;
   const msg = document.getElementById('exp-msg');
-  if(msg) msg.textContent = 'loaded — run restarted.';
-  return {ok:true};
+  try{
+    applySeedPlus(sp, true);
+    if(_lastSettingsSnapshotError && msg){
+      msg.textContent = `loaded with a problem — ${_lastSettingsSnapshotError}`;
+      return {ok:false, reason:_lastSettingsSnapshotError};
+    }
+    if(msg) msg.textContent = 'loaded — run restarted.';
+    return {ok:true};
+  } catch(err){
+    console.error('applyPresetSeedPlus failed', err);
+    if(msg) msg.textContent = `failed to load — ${err.message||err}`;
+    return {ok:false, reason:String(err.message||err)};
+  }
 }
 
 function buildExperimentList(){
@@ -6431,7 +6647,12 @@ function randomPhysics(){
   } else {
     set('initsel', 'custom');
     set('layoutPattern', rnd(['uniform','blobs','wall','grid','rings','diag','spiral','quadrants','border','gradient']));
+    // 30% of the time, go asymmetric — unlock first so the explicit black
+    // pick below actually sticks instead of getting mirrored from white.
+    const asymmetric = diceRandom()<0.3;
+    if(asymmetric){ document.getElementById('lockPieces').checked=false; document.getElementById('lockPieces').dispatchEvent(new Event('change')); }
     set('layoutPieces',  rnd(['all','all','pawns','heavy','knights','bishops','rooks','queens']));
+    if(asymmetric) set('layoutPiecesB', rnd(['all','all','pawns','heavy','knights','bishops','rooks','queens']));
     set('layoutColour',  rnd(['interleaved','segregated','splitHalf','alternating']));
   }
   // potential shape
@@ -8590,7 +8811,7 @@ function initHeadlessRun(seed, cfg){
   equilNoCaptureCount=0;
   equilInitialMat=0; for(let i=0;i<N*H;i++) if(board[i]) equilInitialMat++;
   phaseBuf.pos=0; phaseBuf.count=0; phaseLastStep=0;
-  initMFP();  initSourceSinks();
+  initMFP();  initSourceSinks(); applySourceSinkAutoLayout();
   dynPotBase=null; dynPhase=0;
   pieceGenMap=null;
   selectedCell=null; trajectoryBuf=[];
@@ -8842,6 +9063,7 @@ buildIconGrid('ig-collisionMode', [
   {val:'elastic',   g:'↔', label:'elastic'},
   {val:'inelastic', g:'⤬', label:'inelas.'},
   {val:'annihilate',g:'☠', label:'annih.'},
+  {val:'fusion',    g:'⬆', label:'fusion'},
   {val:'explode',   g:'💥',label:'explode'},
   {val:'exchange',  g:'⇄', label:'exchang'},
   {val:'pacifist',  g:'→', label:'pacifist'},
@@ -8944,7 +9166,34 @@ buildIconGrid('ig-layoutPieces', [
   {val:'rooks',  g:'♜', label:'rook'},
   {val:'queens', g:'♛', label:'queen'},
   {val:'kings',  g:'♔', label:'king'},
-], 'layoutPieces', ()=>{ document.getElementById('initsel').value='custom'; document.getElementById('initsel').dispatchEvent(new Event('change')); });
+], 'layoutPieces', (v)=>{
+  document.getElementById('initsel').value='custom'; document.getElementById('initsel').dispatchEvent(new Event('change'));
+  if(document.getElementById('lockPieces')?.checked){
+    const btn = document.getElementById('ig-layoutPiecesB')?.querySelector(`.ic-btn[data-val="${CSS.escape(v)}"]`);
+    if(btn) btn.click();
+  }
+});
+
+buildIconGrid('ig-layoutPiecesB', [
+  {val:'all',    g:'♟♞', label:'all'},
+  {val:'pawns',  g:'♟', label:'pawns'},
+  {val:'heavy',  g:'♜', label:'heavy'},
+  {val:'knights',g:'♞', label:'knight'},
+  {val:'bishops',g:'♝', label:'bishop'},
+  {val:'rooks',  g:'♜', label:'rook'},
+  {val:'queens', g:'♛', label:'queen'},
+  {val:'kings',  g:'♔', label:'king'},
+], 'layoutPiecesB', ()=>{ document.getElementById('initsel').value='custom'; document.getElementById('initsel').dispatchEvent(new Event('change')); });
+
+document.getElementById('lockPieces')?.addEventListener('change', ()=>{
+  const locked = document.getElementById('lockPieces').checked;
+  document.getElementById('layoutPiecesB-row')?.classList.toggle('hidden', locked);
+  if(locked){
+    const wVal = document.getElementById('layoutPieces')?.value;
+    const btn = document.getElementById('ig-layoutPiecesB')?.querySelector(`.ic-btn[data-val="${CSS.escape(wVal)}"]`);
+    if(btn) btn.click();
+  }
+});
 
 buildIconGrid('ig-layoutColour', [
   {val:'interleaved',g:'⊞', label:'interlv'},
@@ -9633,6 +9882,15 @@ wireSubTabs('experiments', true);
     if(isPhone() && !phoneMode){ phoneMode=true; applyLayout(); }
   });
 })();
+
+// Eager defaults capture, forced HERE — the true end of all init/wiring
+// code (every buildIconGrid/buildMultiIconGrid call, every settings change
+// listener registration, and the initial applyLayout() above have all run
+// by this point). Moved here from partway through the script after a
+// preset-loading regression traced back to this being too early — see
+// getDefaultsSnapshot()'s own comment for what it does; this line is just
+// about forcing WHEN the (still lazy/cached) first call happens.
+getDefaultsSnapshot();
 
 </script>
 
